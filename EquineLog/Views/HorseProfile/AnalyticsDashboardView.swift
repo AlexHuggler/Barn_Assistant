@@ -163,13 +163,7 @@ struct AnalyticsDashboardView: View {
             )
         }
 
-        let isOnTrack: Bool
-        switch type {
-        case .farrier: isOnTrack = avg <= 56
-        case .vet: isOnTrack = avg <= 200
-        case .deworming: isOnTrack = avg <= 70
-        case .dental: isOnTrack = avg <= 395
-        }
+        let isOnTrack = avg <= CycleThreshold.maxDays(for: type)
 
         return AnyView(
             Image(systemName: isOnTrack ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
@@ -278,7 +272,7 @@ struct AnalyticsDashboardView: View {
     }
 
     private func projectedAnnualCost() -> Double {
-        let sixMonthsAgo = Calendar.current.date(byAdding: .month, value: -6, to: .now)!
+        let sixMonthsAgo = Calendar.current.safeDate(byAdding: .month, value: -6, to: .now)
         let recentCosts = events
             .filter { $0.date >= sixMonthsAgo }
             .compactMap(\.cost)
