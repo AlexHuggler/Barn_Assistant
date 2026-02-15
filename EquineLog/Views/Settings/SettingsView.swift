@@ -111,6 +111,7 @@ struct SettingsView: View {
 struct FeedResetView: View {
     @Query(sort: \Horse.name) private var horses: [Horse]
     @Environment(\.dismiss) private var dismiss
+    @State private var showConfirmation = false
 
     var body: some View {
         List {
@@ -122,8 +123,7 @@ struct FeedResetView: View {
 
             Section {
                 Button(role: .destructive) {
-                    resetAllFeeds()
-                    dismiss()
+                    showConfirmation = true
                 } label: {
                     Label("Reset All Feeds", systemImage: "arrow.counterclockwise")
                         .frame(maxWidth: .infinity)
@@ -131,6 +131,20 @@ struct FeedResetView: View {
             }
         }
         .navigationTitle("Reset Feeds")
+        .confirmationDialog(
+            "Reset All Feeds",
+            isPresented: $showConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Reset for \(horses.count) horse\(horses.count == 1 ? "" : "s")", role: .destructive) {
+                resetAllFeeds()
+                HapticManager.notification(.success)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will mark all horses as unfed for the current feeding slot. This is typically done at the start of a new day.")
+        }
     }
 
     private func resetAllFeeds() {

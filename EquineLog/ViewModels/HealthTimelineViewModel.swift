@@ -25,21 +25,21 @@ final class HealthTimelineViewModel {
         }
 
         // Group by status: Overdue, This Week, This Month, Later
+        let calendar = Calendar.current
+        let weekFromNow = calendar.safeDate(byAdding: .weekOfYear, value: 1, to: .now)
+        let monthFromNow = calendar.safeDate(byAdding: .month, value: 1, to: .now)
+
         let overdue = filtered.filter { $0.event.isOverdue }
         let thisWeek = filtered.filter { item in
             guard let due = item.event.nextDueDate, !item.event.isOverdue else { return false }
-            let weekFromNow = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: .now)!
             return due <= weekFromNow
         }
         let thisMonth = filtered.filter { item in
             guard let due = item.event.nextDueDate, !item.event.isOverdue else { return false }
-            let weekFromNow = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: .now)!
-            let monthFromNow = Calendar.current.date(byAdding: .month, value: 1, to: .now)!
             return due > weekFromNow && due <= monthFromNow
         }
         let later = filtered.filter { item in
             guard let due = item.event.nextDueDate, !item.event.isOverdue else { return false }
-            let monthFromNow = Calendar.current.date(byAdding: .month, value: 1, to: .now)!
             return due > monthFromNow
         }
 

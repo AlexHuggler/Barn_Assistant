@@ -25,14 +25,18 @@ struct AddHorseView: View {
     @State private var pmMedicationsText = ""
     @State private var specialInstructions = ""
 
-    // Paywall
-    @State private var showPaywall = false
+    // Smart defaults
+    @State private var copyFromHorse: Horse?
+
+    // Validation
+    @State private var hasAttemptedSave = false
 
     var body: some View {
         NavigationStack {
             Form {
                 horseDetailsSection
                 coatStatusSection
+                smartDefaultsSection
                 amFeedSection
                 pmFeedSection
                 instructionsSection
@@ -44,28 +48,58 @@ struct AddHorseView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveHorse() }
-                        .disabled(name.isEmpty)
+                    Button("Save") { attemptSave() }
+                        .disabled(!isFormValid)
                         .fontWeight(.semibold)
                 }
             }
             .onChange(of: selectedPhoto) { _, newValue in
                 loadPhoto(from: newValue)
             }
-            .sheet(isPresented: $showPaywall) {
-                PaywallView()
+            .onChange(of: copyFromHorse) { _, horse in
+                if let horse { applyDefaults(from: horse) }
             }
         }
+    }
+
+    // MARK: - Validation
+
+    private var nameValidation: FormValidation.Result {
+        FormValidation.validateHorseName(name)
+    }
+
+    private var ownerValidation: FormValidation.Result {
+        FormValidation.validateOwnerName(ownerName)
+    }
+
+    private var isFormValid: Bool {
+        nameValidation.isValid && ownerValidation.isValid
     }
 
     // MARK: - Form Sections
 
     private var horseDetailsSection: some View {
         Section("Horse Details") {
-            TextField("Name", text: $name)
-                .font(EquineFont.body)
-            TextField("Owner Name", text: $ownerName)
-                .font(EquineFont.body)
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("Name", text: $name)
+                    .font(EquineFont.body)
+                    .autocorrectionDisabled()
+                if hasAttemptedSave, let msg = nameValidation.message {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(Color.alertRed)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("Owner Name", text: $ownerName)
+                    .font(EquineFont.body)
+                if hasAttemptedSave, let msg = ownerValidation.message {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(Color.alertRed)
+                }
+            }
 
             PhotosPicker(selection: $selectedPhoto, matching: .images) {
                 HStack {
@@ -100,6 +134,24 @@ struct AddHorseView: View {
         }
     }
 
+    @ViewBuilder
+    private var smartDefaultsSection: some View {
+        if !existingHorses.isEmpty {
+            Section("Quick Fill") {
+                Picker("Copy feed schedule from", selection: $copyFromHorse) {
+                    Text("None").tag(nil as Horse?)
+                    ForEach(existingHorses) { horse in
+                        Text(horse.name).tag(horse as Horse?)
+                    }
+                }
+
+                Text("Pre-fills the feed schedule from an existing horse. You can edit after copying.")
+                    .font(EquineFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var amFeedSection: some View {
         Section("AM Feed") {
             TextField("Grain (e.g., 2 qt SafeChoice)", text: $amGrain)
@@ -127,45 +179,56 @@ struct AddHorseView: View {
 
     // MARK: - Actions
 
-    private func saveHorse() {
-        // Paywall check: if 1+ horse already exists, show paywall
-        if existingHorses.count >= 1 {
-            showPaywall = true
+    private func attemptSave() {
+        hasAttemptedSave = true
+        guard isFormValid else {
+            HapticManager.notification(.error)
             return
         }
-
         commitHorse()
     }
 
-    func commitHorse() {
+    private func commitHorse() {
         let schedule = FeedSchedule(
             amGrain: amGrain,
             amHay: amHay,
-            amSupplements: parseCSV(amSupplementsText),
-            amMedications: parseCSV(amMedicationsText),
+            amSupplements: StringUtilities.parseCSV(amSupplementsText),
+            amMedications: StringUtilities.parseCSV(amMedicationsText),
             pmGrain: pmGrain,
             pmHay: pmHay,
-            pmSupplements: parseCSV(pmSupplementsText),
-            pmMedications: parseCSV(pmMedicationsText),
+            pmSupplements: StringUtilities.parseCSV(pmSupplementsText),
+            pmMedications: StringUtilities.parseCSV(pmMedicationsText),
             specialInstructions: specialInstructions
         )
 
         let horse = Horse(
-            name: name,
-            ownerName: ownerName,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            ownerName: ownerName.trimmingCharacters(in: .whitespacesAndNewlines),
             imageData: imageData,
             isClipped: isClipped,
             feedSchedule: schedule
         )
 
         modelContext.insert(horse)
+        HapticManager.notification(.success)
         dismiss()
     }
 
-    private func parseCSV(_ text: String) -> [String] {
-        text.split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+    private func applyDefaults(from horse: Horse) {
+        guard let schedule = horse.feedSchedule else { return }
+        amGrain = schedule.amGrain
+        amHay = schedule.amHay
+        amSupplementsText = schedule.amSupplements.joined(separator: ", ")
+        amMedicationsText = schedule.amMedications.joined(separator: ", ")
+        pmGrain = schedule.pmGrain
+        pmHay = schedule.pmHay
+        pmSupplementsText = schedule.pmSupplements.joined(separator: ", ")
+        pmMedicationsText = schedule.pmMedications.joined(separator: ", ")
+        specialInstructions = schedule.specialInstructions
+        // Pre-fill owner name if the same owner manages multiple horses
+        if ownerName.isEmpty {
+            ownerName = horse.ownerName
+        }
     }
 
     private func loadPhoto(from item: PhotosPickerItem?) {

@@ -66,37 +66,32 @@ struct EditFeedScheduleView: View {
     }
 
     private func save() {
-        let parse: (String) -> [String] = { text in
-            text.split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-        }
-
         if let schedule = horse.feedSchedule {
             schedule.amGrain = amGrain
             schedule.amHay = amHay
-            schedule.amSupplements = parse(amSupplementsText)
-            schedule.amMedications = parse(amMedicationsText)
+            schedule.amSupplements = StringUtilities.parseCSV(amSupplementsText)
+            schedule.amMedications = StringUtilities.parseCSV(amMedicationsText)
             schedule.pmGrain = pmGrain
             schedule.pmHay = pmHay
-            schedule.pmSupplements = parse(pmSupplementsText)
-            schedule.pmMedications = parse(pmMedicationsText)
+            schedule.pmSupplements = StringUtilities.parseCSV(pmSupplementsText)
+            schedule.pmMedications = StringUtilities.parseCSV(pmMedicationsText)
             schedule.specialInstructions = specialInstructions
         } else {
             let schedule = FeedSchedule(
                 amGrain: amGrain,
                 amHay: amHay,
-                amSupplements: parse(amSupplementsText),
-                amMedications: parse(amMedicationsText),
+                amSupplements: StringUtilities.parseCSV(amSupplementsText),
+                amMedications: StringUtilities.parseCSV(amMedicationsText),
                 pmGrain: pmGrain,
                 pmHay: pmHay,
-                pmSupplements: parse(pmSupplementsText),
-                pmMedications: parse(pmMedicationsText),
+                pmSupplements: StringUtilities.parseCSV(pmSupplementsText),
+                pmMedications: StringUtilities.parseCSV(pmMedicationsText),
                 specialInstructions: specialInstructions
             )
             horse.feedSchedule = schedule
         }
 
+        HapticManager.notification(.success)
         dismiss()
     }
 }

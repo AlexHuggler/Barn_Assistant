@@ -210,7 +210,7 @@ struct PDFReportService {
 
         // Cost analysis
         let totalCost = events.compactMap(\.cost).reduce(0, +)
-        let last90Days = Calendar.current.date(byAdding: .day, value: -90, to: .now)!
+        let last90Days = Calendar.current.safeDate(byAdding: .day, value: -90, to: .now)
         let recentCost = events
             .filter { $0.date >= last90Days }
             .compactMap(\.cost)
