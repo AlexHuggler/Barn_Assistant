@@ -55,6 +55,7 @@ struct WeatherDashboardView: View {
                         .font(.system(size: 48))
                         .foregroundStyle(Color.hunterGreen)
                         .symbolRenderingMode(.multicolor)
+                        .accessibilityHidden(true)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -70,17 +71,21 @@ struct WeatherDashboardView: View {
 
                 Spacer()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(weatherAccessibilityLabel(temp: temp))
 
             HStack(spacing: 20) {
                 if let humidity = weatherService.humidity {
                     Label("\(Int(humidity))%", systemImage: "humidity.fill")
                         .font(EquineFont.caption)
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Humidity \(Int(humidity)) percent")
                 }
                 if let wind = weatherService.windSpeedMPH {
                     Label("\(Int(wind)) mph", systemImage: "wind")
                         .font(EquineFont.caption)
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Wind speed \(Int(wind)) miles per hour")
                 }
                 Spacer()
                 if let updated = weatherService.lastUpdated {
@@ -90,6 +95,14 @@ struct WeatherDashboardView: View {
                 }
             }
         }
+    }
+
+    private func weatherAccessibilityLabel(temp: Double) -> String {
+        var label = "Current temperature \(Int(temp)) degrees Fahrenheit"
+        if let description = weatherService.conditionDescription {
+            label += ", \(description)"
+        }
+        return label
     }
 
     private func errorView(_ message: String) -> some View {
@@ -165,6 +178,7 @@ struct WeatherDashboardView: View {
                 .frame(width: 44, height: 44)
                 .background(Color.hunterGreen.opacity(0.1))
                 .clipShape(Circle())
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -189,6 +203,8 @@ struct WeatherDashboardView: View {
             Spacer()
         }
         .equineCard()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(horse.name), \(horse.isClipped ? "clipped" : "unclipped"). Recommendation: \(recommendation.rawValue). \(BlanketRecommendation.description(for: recommendation))")
     }
 }
 

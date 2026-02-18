@@ -9,11 +9,8 @@ final class PreviewContainer {
     let container: ModelContainer
 
     init() {
-        let schema = Schema([Horse.self, HealthEvent.self, FeedSchedule.self])
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-
         do {
-            container = try ModelContainer(for: schema, configurations: [config])
+            container = try ModelContainerFactory.createPreviewContainer()
         } catch {
             // Provide diagnostic information for debugging preview failures
             fatalError("""
@@ -25,7 +22,7 @@ final class PreviewContainer {
                 all relationships have proper inverse definitions.
 
                 Debug info:
-                - Schema types: Horse, HealthEvent, FeedSchedule
+                - Schema version: \(SchemaV1.versionIdentifier)
                 - Configuration: in-memory only
                 """)
         }
@@ -55,14 +52,12 @@ final class PreviewContainer {
             feedSchedule: schedule
         )
 
-        let calendar = Calendar.current
-
         // Farrier — last visit 6 weeks ago, next due in 2 weeks
         let farrierEvent = HealthEvent(
             type: .farrier,
-            date: calendar.date(byAdding: .weekOfYear, value: -6, to: .now)!,
+            date: Calendar.safeDate(byAdding: .weekOfYear, value: -6, to: .now),
             notes: "Full reset, front shoes. Slight flare on LF corrected.",
-            nextDueDate: calendar.date(byAdding: .weekOfYear, value: 2, to: .now),
+            nextDueDate: Calendar.safeDate(byAdding: .weekOfYear, value: 2, to: .now),
             cost: 185,
             providerName: "Jim's Farrier Service"
         )
@@ -70,9 +65,9 @@ final class PreviewContainer {
         // Vet — overdue by 2 weeks
         let vetEvent = HealthEvent(
             type: .vet,
-            date: calendar.date(byAdding: .month, value: -7, to: .now)!,
+            date: Calendar.safeDate(byAdding: .month, value: -7, to: .now),
             notes: "Spring vaccines, Coggins drawn. All clear.",
-            nextDueDate: calendar.date(byAdding: .weekOfYear, value: -2, to: .now),
+            nextDueDate: Calendar.safeDate(byAdding: .weekOfYear, value: -2, to: .now),
             cost: 320,
             providerName: "Dr. Patterson, DVM"
         )
@@ -80,18 +75,18 @@ final class PreviewContainer {
         // Deworming — done 3 weeks ago
         let dewormEvent = HealthEvent(
             type: .deworming,
-            date: calendar.date(byAdding: .weekOfYear, value: -3, to: .now)!,
+            date: Calendar.safeDate(byAdding: .weekOfYear, value: -3, to: .now),
             notes: "Quest Plus. FEC was 250 EPG.",
-            nextDueDate: calendar.date(byAdding: .weekOfYear, value: 5, to: .now),
+            nextDueDate: Calendar.safeDate(byAdding: .weekOfYear, value: 5, to: .now),
             cost: 15
         )
 
         // Dental — annual, done 8 months ago
         let dentalEvent = HealthEvent(
             type: .dental,
-            date: calendar.date(byAdding: .month, value: -8, to: .now)!,
+            date: Calendar.safeDate(byAdding: .month, value: -8, to: .now),
             notes: "Power float. Minor hooks on upper arcades corrected.",
-            nextDueDate: calendar.date(byAdding: .month, value: 4, to: .now),
+            nextDueDate: Calendar.safeDate(byAdding: .month, value: 4, to: .now),
             cost: 250,
             providerName: "Equine Dental Pros"
         )
@@ -99,9 +94,9 @@ final class PreviewContainer {
         // Older farrier event for analytics
         let oldFarrier = HealthEvent(
             type: .farrier,
-            date: calendar.date(byAdding: .weekOfYear, value: -14, to: .now)!,
+            date: Calendar.safeDate(byAdding: .weekOfYear, value: -14, to: .now),
             notes: "Trim and reset.",
-            nextDueDate: calendar.date(byAdding: .weekOfYear, value: -6, to: .now),
+            nextDueDate: Calendar.safeDate(byAdding: .weekOfYear, value: -6, to: .now),
             cost: 175,
             providerName: "Jim's Farrier Service"
         )

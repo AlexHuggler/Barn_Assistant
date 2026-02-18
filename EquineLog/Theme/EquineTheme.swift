@@ -26,14 +26,27 @@ extension Color {
 }
 
 // MARK: - Typography
+// All fonts use semantic text styles that automatically scale with Dynamic Type.
+// Users can adjust text size in Settings > Accessibility > Display & Text Size.
 
 struct EquineFont {
+    /// Large display title - scales with Dynamic Type
     static let largeTitle = Font.system(.largeTitle, design: .rounded, weight: .bold)
+
+    /// Section title - scales with Dynamic Type
     static let title = Font.system(.title2, design: .rounded, weight: .semibold)
+
+    /// Row/card header - scales with Dynamic Type
     static let headline = Font.system(.headline, design: .rounded, weight: .semibold)
+
+    /// Standard body text - scales with Dynamic Type
     static let body = Font.system(.body, design: .default, weight: .regular)
+
+    /// Secondary/metadata text - scales with Dynamic Type
     static let caption = Font.system(.caption, design: .default, weight: .medium)
-    static let feedBoard = Font.system(.title3, design: .monospaced, weight: .medium)
+
+    /// Feed board text (monospaced for alignment) - scales with Dynamic Type
+    static let feedBoard = Font.system(.subheadline, design: .monospaced, weight: .medium)
 }
 
 // MARK: - Card Style
@@ -98,5 +111,6 @@ struct StatusBadge: View {
             .padding(.vertical, 4)
             .background(color)
             .clipShape(Capsule())
+            .accessibilityLabel(text)
     }
 }

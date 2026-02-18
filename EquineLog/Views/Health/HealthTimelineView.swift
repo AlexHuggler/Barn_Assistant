@@ -24,6 +24,7 @@ struct HealthTimelineView: View {
                             Image(systemName: "plus.circle.fill")
                                 .foregroundStyle(Color.hunterGreen)
                         }
+                        .accessibilityLabel("Add health event")
                     }
                 }
             }
@@ -102,6 +103,8 @@ struct HealthTimelineView: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Filter by \(title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var emptyState: some View {
@@ -129,6 +132,7 @@ struct HealthEventRow: View {
                     (isOverdue ? Color.alertRed : Color.hunterGreen).opacity(0.1)
                 )
                 .clipShape(Circle())
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
@@ -156,9 +160,20 @@ struct HealthEventRow: View {
             if isOverdue {
                 Image(systemName: "exclamationmark.circle.fill")
                     .foregroundStyle(Color.alertRed)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        var description = "\(item.event.type.rawValue) for \(item.horseName). \(item.event.formattedDueStatus)"
+        if isOverdue {
+            description = "Overdue: " + description
+        }
+        return description
     }
 }
 
