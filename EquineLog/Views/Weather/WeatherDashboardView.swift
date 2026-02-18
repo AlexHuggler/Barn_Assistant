@@ -4,7 +4,7 @@ import SwiftData
 struct WeatherDashboardView: View {
     @Query(sort: \Horse.name) private var horses: [Horse]
     @State private var weatherService = WeatherService()
-    @State private var locationManager = LocationManager()
+    private var locationManager: LocationManager { LocationManager.shared }
 
     var body: some View {
         NavigationStack {

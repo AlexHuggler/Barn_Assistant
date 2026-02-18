@@ -11,8 +11,24 @@ final class PreviewContainer {
     init() {
         let schema = Schema([Horse.self, HealthEvent.self, FeedSchedule.self])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        // swiftlint:disable:next force_try
-        container = try! ModelContainer(for: schema, configurations: [config])
+
+        do {
+            container = try ModelContainer(for: schema, configurations: [config])
+        } catch {
+            // Provide diagnostic information for debugging preview failures
+            fatalError("""
+                PreviewContainer failed to initialize ModelContainer.
+                Error: \(error.localizedDescription)
+
+                This typically indicates a schema configuration issue.
+                Check that all @Model classes are correctly defined and
+                all relationships have proper inverse definitions.
+
+                Debug info:
+                - Schema types: Horse, HealthEvent, FeedSchedule
+                - Configuration: in-memory only
+                """)
+        }
 
         // Insert sample data
         let horse = PreviewContainer.sampleHorse()
