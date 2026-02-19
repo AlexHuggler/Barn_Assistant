@@ -2,8 +2,21 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .stable
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
+        if horizontalSizeClass == .regular {
+            // iPad: Sidebar navigation
+            iPadLayout
+        } else {
+            // iPhone: Tab bar navigation
+            iPhoneLayout
+        }
+    }
+
+    // MARK: - iPhone Layout (Tab Bar)
+
+    private var iPhoneLayout: some View {
         TabView(selection: $selectedTab) {
             FeedBoardView()
                 .tabItem {
@@ -30,6 +43,36 @@ struct ContentView: View {
                 .tag(AppTab.settings)
         }
         .tint(.hunterGreen)
+    }
+
+    // MARK: - iPad Layout (Sidebar)
+
+    private var iPadLayout: some View {
+        NavigationSplitView {
+            List(AppTab.allCases, selection: $selectedTab) { tab in
+                Label(tab.title, systemImage: tab.icon)
+                    .tag(tab)
+            }
+            .navigationTitle("EquineLog")
+            .listStyle(.sidebar)
+        } detail: {
+            selectedDetailView
+        }
+        .tint(.hunterGreen)
+    }
+
+    @ViewBuilder
+    private var selectedDetailView: some View {
+        switch selectedTab {
+        case .stable:
+            FeedBoardView()
+        case .health:
+            HealthTimelineView()
+        case .weather:
+            WeatherDashboardView()
+        case .settings:
+            SettingsView()
+        }
     }
 }
 

@@ -41,6 +41,7 @@ struct FeedBoardRow: View {
                     .stroke(Color.pastureGreen, lineWidth: 2)
             }
         }
+        .accessibilityHidden(true)
     }
 
     private var feedContent: some View {

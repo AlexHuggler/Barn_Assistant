@@ -31,6 +31,10 @@ struct AddHorseView: View {
     // Validation
     @State private var hasAttemptedSave = false
 
+    // Photo loading state
+    @State private var isLoadingPhoto = false
+    @State private var photoLoadingError: String?
+
     var body: some View {
         NavigationStack {
             Form {
@@ -101,21 +105,32 @@ struct AddHorseView: View {
                 }
             }
 
-            PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                HStack {
-                    Text("Photo")
-                    Spacer()
-                    if let imageData, let uiImage = UIImage(data: imageData) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 44, height: 44)
-                            .clipShape(Circle())
-                    } else {
-                        Image(systemName: "camera.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(Color.hunterGreen)
+            VStack(alignment: .leading, spacing: 4) {
+                PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                    HStack {
+                        Text("Photo")
+                        Spacer()
+                        if isLoadingPhoto {
+                            ProgressView()
+                                .frame(width: 44, height: 44)
+                        } else if let imageData, let uiImage = UIImage(data: imageData) {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 44, height: 44)
+                                .clipShape(Circle())
+                        } else {
+                            Image(systemName: "camera.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(Color.hunterGreen)
+                        }
                     }
+                }
+
+                if let error = photoLoadingError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(Color.alertRed)
                 }
             }
         }
@@ -233,9 +248,29 @@ struct AddHorseView: View {
 
     private func loadPhoto(from item: PhotosPickerItem?) {
         guard let item else { return }
+
+        // Clear previous error
+        photoLoadingError = nil
+        isLoadingPhoto = true
+
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                imageData = data
+            do {
+                let data = try await item.loadTransferable(type: Data.self)
+                await MainActor.run {
+                    if let data, UIImage(data: data) != nil {
+                        imageData = data
+                    } else {
+                        photoLoadingError = "Unable to load image. Please try a different photo."
+                        HapticManager.notification(.error)
+                    }
+                    isLoadingPhoto = false
+                }
+            } catch {
+                await MainActor.run {
+                    photoLoadingError = "Photo loading failed: \(error.localizedDescription)"
+                    isLoadingPhoto = false
+                    HapticManager.notification(.error)
+                }
             }
         }
     }
