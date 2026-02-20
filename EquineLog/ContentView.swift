@@ -2,16 +2,22 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .stable
+    @State private var onboardingManager = OnboardingManager.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        if horizontalSizeClass == .regular {
-            // iPad: Sidebar navigation
-            iPadLayout
-        } else {
-            // iPhone: Tab bar navigation
-            iPhoneLayout
+        Group {
+            if !onboardingManager.hasCompletedOnboarding {
+                OnboardingView(manager: onboardingManager)
+            } else if horizontalSizeClass == .regular {
+                // iPad: Sidebar navigation
+                iPadLayout
+            } else {
+                // iPhone: Tab bar navigation
+                iPhoneLayout
+            }
         }
+        .animation(.easeInOut(duration: 0.3), value: onboardingManager.hasCompletedOnboarding)
     }
 
     // MARK: - iPhone Layout (Tab Bar)
