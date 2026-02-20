@@ -4,12 +4,12 @@ import SwiftData
 // MARK: - Schema Version 1 (Initial Release)
 
 /// Version 1 schema - Initial release of EquineLog
-/// Contains: Horse, HealthEvent, FeedSchedule
+/// Contains: Horse, HealthEvent, FeedSchedule, FeedTemplate
 enum SchemaV1: VersionedSchema {
     static var versionIdentifier: Schema.Version = Schema.Version(1, 0, 0)
 
     static var models: [any PersistentModel.Type] {
-        [Horse.self, HealthEvent.self, FeedSchedule.self]
+        [Horse.self, HealthEvent.self, FeedSchedule.self, FeedTemplate.self]
     }
 }
 

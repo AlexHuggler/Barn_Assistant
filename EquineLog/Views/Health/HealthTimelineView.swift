@@ -31,6 +31,15 @@ struct HealthTimelineView: View {
             .sheet(isPresented: $viewModel.showingAddEvent) {
                 AddHealthEventView(horses: horses)
             }
+            .sheet(isPresented: $viewModel.showingEditEvent) {
+                if let event = viewModel.eventToEdit {
+                    AddHealthEventView(
+                        horses: horses,
+                        existingEvent: event,
+                        horse: viewModel.eventToEditHorse
+                    )
+                }
+            }
         }
     }
 
@@ -38,16 +47,32 @@ struct HealthTimelineView: View {
 
     private var timelineContent: some View {
         List {
-            // Filter chips
+            // Filter chips section
             Section {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        filterChip(title: "All", type: nil)
-                        ForEach(HealthEventType.allCases) { type in
-                            filterChip(title: type.rawValue, type: type)
+                VStack(alignment: .leading, spacing: 10) {
+                    // Event type filter
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            filterChip(title: "All", type: nil)
+                            ForEach(HealthEventType.allCases) { type in
+                                filterChip(title: type.rawValue, type: type)
+                            }
+                        }
+                        .padding(.horizontal, 2)
+                    }
+
+                    // Horse filter
+                    if horses.count > 1 {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                horseFilterChip(title: "All Horses", horse: nil)
+                                ForEach(horses) { horse in
+                                    horseFilterChip(title: horse.name, horse: horse)
+                                }
+                            }
+                            .padding(.horizontal, 2)
                         }
                     }
-                    .padding(.horizontal, 2)
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                 .listRowBackground(Color.clear)
@@ -68,6 +93,12 @@ struct HealthTimelineView: View {
                     Section {
                         ForEach(group.items) { item in
                             HealthEventRow(item: item, isOverdue: group.isOverdue)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    viewModel.eventToEdit = item.event
+                                    viewModel.eventToEditHorse = item.horse
+                                    viewModel.showingEditEvent = true
+                                }
                         }
                     } header: {
                         HStack {
@@ -101,6 +132,40 @@ struct HealthTimelineView: View {
                 .background(isSelected ? Color.hunterGreen : Color.parchment)
                 .foregroundStyle(isSelected ? .white : Color.barnText)
                 .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Filter by \(title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func horseFilterChip(title: String, horse: Horse?) -> some View {
+        let isSelected = viewModel.selectedHorse?.id == horse?.id
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewModel.selectedHorse = horse
+            }
+        } label: {
+            HStack(spacing: 6) {
+                if let horse, let imageData = horse.imageData, let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 20, height: 20)
+                        .clipShape(Circle())
+                } else if horse != nil {
+                    Image(systemName: "horse.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Color.hunterGreen.opacity(0.5))
+                }
+                Text(title)
+                    .font(EquineFont.caption)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isSelected ? Color.saddleBrown : Color.parchment)
+            .foregroundStyle(isSelected ? .white : Color.barnText)
+            .clipShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Filter by \(title)")
@@ -162,10 +227,16 @@ struct HealthEventRow: View {
                     .foregroundStyle(Color.alertRed)
                     .accessibilityHidden(true)
             }
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
+        .accessibilityHint("Tap to edit this event")
     }
 
     private var accessibilityDescription: String {

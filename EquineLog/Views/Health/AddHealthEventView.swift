@@ -5,6 +5,8 @@ struct AddHealthEventView: View {
     @Environment(\.dismiss) private var dismiss
 
     let horses: [Horse]
+    let existingEvent: HealthEvent?
+    let existingEventHorse: Horse?
 
     @State private var selectedHorse: Horse?
     @State private var eventType: HealthEventType = .farrier
@@ -16,6 +18,10 @@ struct AddHealthEventView: View {
     @State private var customNextDueDate: Date = .now
     @State private var hasAttemptedSave = false
     @State private var costFieldTouched = false
+    @State private var isSaving = false
+    @State private var showSuccessToast = false
+
+    private var isEditing: Bool { existingEvent != nil }
 
     /// Collect previously used provider names for auto-suggest.
     private var knownProviders: [String] {
@@ -26,9 +32,32 @@ struct AddHealthEventView: View {
     }
 
     /// Auto-select the single horse if only one is provided (quick-log from feed board).
-    init(horses: [Horse]) {
+    init(horses: [Horse], existingEvent: HealthEvent? = nil, horse: Horse? = nil) {
         self.horses = horses
-        if horses.count == 1 {
+        self.existingEvent = existingEvent
+        self.existingEventHorse = horse
+
+        if let event = existingEvent {
+            // Editing mode - pre-fill all fields
+            _eventType = State(initialValue: event.type)
+            _date = State(initialValue: event.date)
+            _notes = State(initialValue: event.notes)
+            _providerName = State(initialValue: event.providerName ?? "")
+            _cost = State(initialValue: event.cost)
+            _selectedHorse = State(initialValue: horse)
+
+            if let nextDue = event.nextDueDate {
+                let suggested = HealthEvent.suggestedNextDueDate(for: event.type, from: event.date)
+                if let suggested, Calendar.current.isDate(nextDue, inSameDayAs: suggested) {
+                    _autoCalculateNextDue = State(initialValue: true)
+                } else {
+                    _autoCalculateNextDue = State(initialValue: false)
+                    _customNextDueDate = State(initialValue: nextDue)
+                }
+            } else {
+                _autoCalculateNextDue = State(initialValue: true)
+            }
+        } else if horses.count == 1 {
             _selectedHorse = State(initialValue: horses.first)
         }
     }
@@ -159,18 +188,29 @@ struct AddHealthEventView: View {
                     }
                 }
             }
-            .navigationTitle("Log Health Event")
+            .navigationTitle(isEditing ? "Edit Health Event" : "Log Health Event")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { attemptSave() }
-                        .disabled(selectedHorse == nil)
-                        .fontWeight(.semibold)
+                    Button {
+                        attemptSave()
+                    } label: {
+                        if isSaving {
+                            ProgressView()
+                                .tint(Color.hunterGreen)
+                        } else {
+                            Text("Save")
+                        }
+                    }
+                    .disabled(selectedHorse == nil || isSaving)
+                    .fontWeight(.semibold)
                 }
             }
+            .toast(isShowing: $showSuccessToast, message: isEditing ? "Event updated!" : "Event logged!", icon: "checkmark.circle.fill", color: .pastureGreen)
         }
     }
 
@@ -188,6 +228,8 @@ struct AddHealthEventView: View {
             return
         }
 
+        isSaving = true
+
         let nextDue: Date?
         if autoCalculateNextDue {
             nextDue = HealthEvent.suggestedNextDueDate(for: eventType, from: date)
@@ -195,18 +237,36 @@ struct AddHealthEventView: View {
             nextDue = customNextDueDate
         }
 
-        let event = HealthEvent(
-            type: eventType,
-            date: date,
-            notes: notes,
-            nextDueDate: nextDue,
-            cost: cost,
-            providerName: providerName.isEmpty ? nil : providerName
-        )
+        if let existingEvent {
+            // Update existing event
+            existingEvent.type = eventType
+            existingEvent.date = date
+            existingEvent.notes = notes
+            existingEvent.nextDueDate = nextDue
+            existingEvent.cost = cost
+            existingEvent.providerName = providerName.isEmpty ? nil : providerName
+        } else {
+            // Create new event
+            let event = HealthEvent(
+                type: eventType,
+                date: date,
+                notes: notes,
+                nextDueDate: nextDue,
+                cost: cost,
+                providerName: providerName.isEmpty ? nil : providerName
+            )
+            horse.healthEvents.append(event)
+        }
 
-        horse.healthEvents.append(event)
         HapticManager.notification(.success)
-        dismiss()
+
+        withAnimation {
+            showSuccessToast = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            dismiss()
+        }
     }
 }
 

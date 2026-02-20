@@ -16,6 +16,10 @@ struct EditFeedScheduleView: View {
     @State private var specialInstructions: String
     @State private var isSaving = false
     @State private var showSuccessToast = false
+    @State private var showingSaveAsTemplate = false
+    @State private var templateName = ""
+    @State private var templateDescription = ""
+    @State private var showTemplateToast = false
 
     init(horse: Horse) {
         self.horse = horse
@@ -52,6 +56,25 @@ struct EditFeedScheduleView: View {
                     TextField("Notes for barn staff...", text: $specialInstructions, axis: .vertical)
                         .lineLimit(2...4)
                 }
+
+                Section {
+                    Button {
+                        showingSaveAsTemplate = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "doc.badge.plus")
+                                .foregroundStyle(Color.hunterGreen)
+                            Text("Save as Template")
+                                .foregroundStyle(Color.barnText)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } footer: {
+                    Text("Save this feed schedule as a reusable template for future horses.")
+                }
             }
             .navigationTitle("Edit Feed Schedule")
             .navigationBarTitleDisplayMode(.inline)
@@ -76,6 +99,21 @@ struct EditFeedScheduleView: View {
                 }
             }
             .toast(isShowing: $showSuccessToast, message: "Schedule saved!", icon: "checkmark.circle.fill", color: .pastureGreen)
+            .toast(isShowing: $showTemplateToast, message: "Template created!", icon: "doc.badge.plus", color: .hunterGreen)
+            .alert("Save as Template", isPresented: $showingSaveAsTemplate) {
+                TextField("Template name", text: $templateName)
+                TextField("Description (optional)", text: $templateDescription)
+                Button("Cancel", role: .cancel) {
+                    templateName = ""
+                    templateDescription = ""
+                }
+                Button("Save") {
+                    saveAsTemplate()
+                }
+                .disabled(templateName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } message: {
+                Text("Give this template a name so you can apply it to other horses later.")
+            }
         }
     }
 
@@ -115,6 +153,33 @@ struct EditFeedScheduleView: View {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             dismiss()
+        }
+    }
+
+    private func saveAsTemplate() {
+        let template = FeedTemplate(
+            name: templateName.trimmingCharacters(in: .whitespacesAndNewlines),
+            description: templateDescription,
+            amGrain: amGrain,
+            amHay: amHay,
+            amSupplements: StringUtilities.parseCSV(amSupplementsText),
+            amMedications: StringUtilities.parseCSV(amMedicationsText),
+            pmGrain: pmGrain,
+            pmHay: pmHay,
+            pmSupplements: StringUtilities.parseCSV(pmSupplementsText),
+            pmMedications: StringUtilities.parseCSV(pmMedicationsText),
+            specialInstructions: specialInstructions
+        )
+
+        modelContext.insert(template)
+        HapticManager.notification(.success)
+
+        // Reset fields
+        templateName = ""
+        templateDescription = ""
+
+        withAnimation {
+            showTemplateToast = true
         }
     }
 }
