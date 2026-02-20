@@ -27,6 +27,7 @@ struct AddHorseView: View {
 
     // Smart defaults
     @State private var copyFromHorse: Horse?
+    @State private var showingTemplateLibrary = false
 
     // Validation
     @State private var hasAttemptedSave = false
@@ -78,6 +79,11 @@ struct AddHorseView: View {
             }
             .onChange(of: copyFromHorse) { _, horse in
                 if let horse { applyDefaults(from: horse) }
+            }
+            .sheet(isPresented: $showingTemplateLibrary) {
+                FeedTemplateLibraryView { template in
+                    applyTemplate(template)
+                }
             }
             .toast(isShowing: $showSuccessToast, message: "\(name) added!", icon: "checkmark.circle.fill", color: .pastureGreen)
         }
@@ -203,21 +209,36 @@ struct AddHorseView: View {
         }
     }
 
-    @ViewBuilder
     private var smartDefaultsSection: some View {
-        if !existingHorses.isEmpty {
-            Section("Quick Fill") {
-                Picker("Copy feed schedule from", selection: $copyFromHorse) {
+        Section("Quick Fill") {
+            Button {
+                showingTemplateLibrary = true
+            } label: {
+                HStack {
+                    Image(systemName: "doc.on.doc.fill")
+                        .foregroundStyle(Color.hunterGreen)
+                    Text("Apply Feed Template")
+                        .foregroundStyle(Color.barnText)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityHint("Opens template library to apply a saved feed schedule")
+
+            if !existingHorses.isEmpty {
+                Picker("Copy from horse", selection: $copyFromHorse) {
                     Text("None").tag(nil as Horse?)
                     ForEach(existingHorses) { horse in
                         Text(horse.name).tag(horse as Horse?)
                     }
                 }
-
-                Text("Pre-fills the feed schedule from an existing horse. You can edit after copying.")
-                    .font(EquineFont.caption)
-                    .foregroundStyle(.secondary)
             }
+
+            Text("Use templates or copy from an existing horse to quickly fill the feed schedule.")
+                .font(EquineFont.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -308,6 +329,18 @@ struct AddHorseView: View {
         if ownerName.isEmpty {
             ownerName = horse.ownerName
         }
+    }
+
+    private func applyTemplate(_ template: FeedTemplate) {
+        amGrain = template.amGrain
+        amHay = template.amHay
+        amSupplementsText = template.amSupplements.joined(separator: ", ")
+        amMedicationsText = template.amMedications.joined(separator: ", ")
+        pmGrain = template.pmGrain
+        pmHay = template.pmHay
+        pmSupplementsText = template.pmSupplements.joined(separator: ", ")
+        pmMedicationsText = template.pmMedications.joined(separator: ", ")
+        specialInstructions = template.specialInstructions
     }
 
     private func loadPhoto(from item: PhotosPickerItem?) {

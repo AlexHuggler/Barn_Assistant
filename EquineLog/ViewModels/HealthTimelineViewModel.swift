@@ -7,12 +7,18 @@ final class HealthTimelineViewModel {
     var selectedFilter: HealthEventType?
     var showingAddEvent = false
     var selectedHorse: Horse?
+    var eventToEdit: HealthEvent?
+    var eventToEditHorse: Horse?
+    var showingEditEvent = false
 
     func upcomingEvents(from horses: [Horse]) -> [HealthEventGroup] {
-        let allEvents = horses.flatMap { horse in
+        // Filter by selected horse if set
+        let horsesToInclude = selectedHorse.map { [$0] } ?? horses
+
+        let allEvents = horsesToInclude.flatMap { horse in
             horse.healthEvents.compactMap { event -> HealthEventItem? in
                 guard event.nextDueDate != nil else { return nil }
-                return HealthEventItem(event: event, horseName: horse.name)
+                return HealthEventItem(event: event, horseName: horse.name, horseId: horse.id, horse: horse)
             }
         }
         .sorted { ($0.event.nextDueDate ?? .distantFuture) < ($1.event.nextDueDate ?? .distantFuture) }
@@ -58,6 +64,8 @@ final class HealthTimelineViewModel {
 struct HealthEventItem: Identifiable {
     let event: HealthEvent
     let horseName: String
+    let horseId: UUID
+    weak var horse: Horse?
     var id: UUID { event.id }
 }
 
