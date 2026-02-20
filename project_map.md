@@ -1,5 +1,7 @@
 # EquineLog Project Architecture Map
 
+*Last Updated: February 2026*
+
 ## 1. Framework Analysis
 
 | Category | Technology | Version Target |
@@ -49,6 +51,7 @@
 | ViewModels | `@Observable` (iOS 17+) | Direct property binding, no `@Published` |
 | Models | SwiftData `@Model` | Automatic persistence, relationships |
 | Services | Static/Singleton-like | Stateless utilities + stateful weather |
+| Onboarding | UserDefaults-backed singleton | `OnboardingManager.shared` |
 
 ---
 
@@ -60,8 +63,15 @@ EquineLogApp.swift (ENTRY POINT)
         ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          ContentView.swift                           │
-│                     (TabView Navigation Hub)                         │
+│              (Onboarding Gate → TabView Navigation Hub)              │
 └─────────────────────────────────────────────────────────────────────┘
+        │
+        ├── First Launch ───────────────────────────────┐
+        │                                               ▼
+        │                                    ┌───────────────────┐
+        │                                    │  OnboardingView   │
+        │                                    │ (5-Step Tutorial) │
+        │                                    └───────────────────┘
         │
         ├─────────────────┬─────────────────┬─────────────────┐
         ▼                 ▼                 ▼                 ▼
@@ -75,6 +85,8 @@ EquineLogApp.swift (ENTRY POINT)
 │FeedBoardView  │ │HealthTimeline │ │WeatherDashboard│ │ SettingsView  │
 │FeedBoardRow   │ │     View      │ │     View       │ │ PaywallView   │
 │AddHorseView   │ │AddHealthEvent │ │                │ │ FeedResetView │
+│FeedTemplate   │ │ (Add/Edit)    │ │                │ │ QuickTipsView │
+│  LibraryView  │ │               │ │                │ │OnboardReplay  │
 └───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
         │                 │                 │
         └────────┬────────┴────────┬────────┘
@@ -83,7 +95,8 @@ EquineLogApp.swift (ENTRY POINT)
         │HorseProfileView│ │   Services    │
         │EditFeedSchedule│ │WeatherService │
         │AnalyticsDash   │ │PDFReportService│
-        └───────────────┘ └───────────────┘
+        └───────────────┘ │LocationManager │
+                          └───────────────┘
                  │
                  ▼
         ┌───────────────────────────────────────┐
@@ -91,7 +104,7 @@ EquineLogApp.swift (ENTRY POINT)
         │   Horse ◀──▶ HealthEvent             │
         │     │                                 │
         │     ▼                                 │
-        │   FeedSchedule                        │
+        │   FeedSchedule    FeedTemplate        │
         └───────────────────────────────────────┘
                  │
                  ▼
@@ -112,31 +125,42 @@ EquineLogApp.swift (ENTRY POINT)
 ```swift
 @main
 struct EquineLogApp: App {
+    let container: ModelContainer
+
+    init() {
+        do {
+            container = try ModelContainerFactory.createProductionContainer()
+        } catch {
+            fatalError("Failed to initialize ModelContainer: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [Horse.self, HealthEvent.self, FeedSchedule.self])
+        .modelContainer(container)
     }
 }
 ```
 
 ### App Lifecycle
 1. `@main` attribute designates entry point
-2. `WindowGroup` creates the root window
-3. `.modelContainer()` injects SwiftData persistence
-4. `ContentView` renders the `TabView` navigation
+2. `ModelContainerFactory` creates container with migration support
+3. `WindowGroup` creates the root window
+4. `.modelContainer()` injects SwiftData persistence
+5. `ContentView` checks onboarding state → shows `OnboardingView` or `TabView`
 
 ---
 
 ## 5. Persistence Layer
 
-### SwiftData Schema
+### SwiftData Schema (Version 1.0.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         ModelContainer                               │
-│                    (Automatic SQLite backend)                        │
+│           (VersionedSchema + SchemaMigrationPlan)                    │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  ┌────────────────┐       ┌────────────────┐                        │
@@ -155,21 +179,32 @@ struct EquineLogApp: App {
 │          │                                                           │
 │          │ (One-to-One Optional)                                     │
 │          ▼                                                           │
-│  ┌────────────────┐                                                  │
-│  │  FeedSchedule  │                                                  │
-│  │    @Model      │                                                  │
-│  ├────────────────┤                                                  │
-│  │ id: UUID       │                                                  │
-│  │ amGrain: String│                                                  │
-│  │ pmGrain: String│                                                  │
-│  │ amSupplements[]│                                                  │
-│  │ amMedications[]│                                                  │
-│  │ amFedToday:Bool│                                                  │
-│  │ pmFedToday:Bool│                                                  │
-│  │ horse: Horse?  │◀──────  (Inverse)                               │
+│  ┌────────────────┐       ┌────────────────┐                        │
+│  │  FeedSchedule  │       │  FeedTemplate  │  (Standalone)          │
+│  │    @Model      │       │    @Model      │                        │
+│  ├────────────────┤       ├────────────────┤                        │
+│  │ id: UUID       │       │ id: UUID       │                        │
+│  │ amGrain: String│       │ name: String   │                        │
+│  │ pmGrain: String│       │ description    │                        │
+│  │ amSupplements[]│       │ amGrain, pmGrain│                       │
+│  │ amMedications[]│       │ supplements    │                        │
+│  │ amFedToday:Bool│       │ usageCount: Int│                        │
+│  │ pmFedToday:Bool│       │ createdAt: Date│                        │
+│  │ horse: Horse?  │       └────────────────┘                        │
 │  └────────────────┘                                                  │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+### Schema Migration Strategy
+
+```swift
+enum EquineLogMigrationPlan: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] {
+        [SchemaV1.self]  // Future: SchemaV2.self, etc.
+    }
+    static var stages: [MigrationStage] { [] }  // Lightweight by default
+}
 ```
 
 ### Relationship Semantics
@@ -179,6 +214,7 @@ struct EquineLogApp: App {
 | Horse → FeedSchedule | `.cascade` | One-to-One (optional) |
 | HealthEvent → Horse | Inverse reference | Back-pointer |
 | FeedSchedule → Horse | Inverse reference | Back-pointer |
+| FeedTemplate | Standalone | No relationships |
 
 ---
 
@@ -194,10 +230,16 @@ struct EquineLogApp: App {
       │                   │                   │
       ▼                   ▼                   ▼
  CLLocationManager   WeatherKit.shared   @Observable
-   Delegate          async/await         State Binding
+ @MainActor Singleton  15-min Cache     State Binding
+ Thread-Safe Delegate  Rate Limited
 ```
 
 **No REST API client** — WeatherKit is the only network dependency
+
+### Thread Safety Model
+- `WeatherService`: `@MainActor` isolated
+- `LocationManager`: `@MainActor` singleton with `nonisolated` delegate methods
+- Delegate callbacks dispatch to MainActor via `Task { @MainActor in ... }`
 
 ---
 
@@ -206,27 +248,29 @@ struct EquineLogApp: App {
 ```
 EquineLog/
 ├── EquineLogApp.swift              # @main entry point
-├── ContentView.swift               # TabView navigation
+├── ContentView.swift               # Onboarding gate + TabView navigation
 │
 ├── Models/
 │   ├── Horse.swift                 # @Model root entity
 │   ├── HealthEvent.swift           # @Model + HealthEventType enum
 │   ├── FeedSchedule.swift          # @Model feeding schedule
+│   ├── FeedTemplate.swift          # @Model reusable feed templates
 │   └── BlanketRecommendation.swift # Pure logic (no persistence)
 │
 ├── ViewModels/
-│   ├── FeedBoardViewModel.swift    # @Observable feed state
-│   └── HealthTimelineViewModel.swift # @Observable health state
+│   ├── FeedBoardViewModel.swift    # @Observable feed state + undo
+│   └── HealthTimelineViewModel.swift # @Observable health state + filters
 │
 ├── Views/
 │   ├── FeedBoard/
 │   │   ├── FeedBoardView.swift     # Main stable view
 │   │   ├── FeedBoardRow.swift      # Horse row component
-│   │   └── AddHorseView.swift      # Horse creation form
+│   │   ├── AddHorseView.swift      # Horse creation form
+│   │   └── FeedTemplateLibraryView.swift # Template management
 │   │
 │   ├── Health/
 │   │   ├── HealthTimelineView.swift # Maintenance timeline
-│   │   └── AddHealthEventView.swift # Event logging form
+│   │   └── AddHealthEventView.swift # Event add/edit form
 │   │
 │   ├── Weather/
 │   │   └── WeatherDashboardView.swift # Blanketing assistant
@@ -237,21 +281,30 @@ EquineLog/
 │   │   └── AnalyticsDashboardView.swift # Cost analytics
 │   │
 │   ├── Settings/
-│   │   ├── SettingsView.swift       # App settings
-│   │   └── PaywallView.swift        # Subscription gate
+│   │   ├── SettingsView.swift       # App settings + replay tutorial
+│   │   ├── PaywallView.swift        # Subscription gate
+│   │   ├── QuickTipsView.swift      # Feature tips
+│   │   └── OnboardingReplayView.swift # Tutorial replay
 │   │
 │   └── Components/
 │       └── (empty - components inline)
 │
+├── Onboarding/
+│   ├── OnboardingManager.swift     # UserDefaults-backed state
+│   └── OnboardingView.swift        # 5-step tutorial flow
+│
 ├── Services/
-│   ├── WeatherService.swift        # WeatherKit + LocationManager
+│   ├── WeatherService.swift        # WeatherKit + LocationManager (MainActor)
 │   └── PDFReportService.swift      # PDF generation
 │
+├── Schema/
+│   └── SchemaVersions.swift        # VersionedSchema + MigrationPlan
+│
 ├── Theme/
-│   └── EquineTheme.swift           # Colors, fonts, modifiers
+│   └── EquineTheme.swift           # Colors, fonts, modifiers, Toast
 │
 ├── Utilities/
-│   └── SharedUtilities.swift       # FeedSlot, HapticManager, etc.
+│   └── SharedUtilities.swift       # FeedSlot, HapticManager, Validation
 │
 └── Preview/
     └── PreviewContainer.swift      # In-memory SwiftData for previews
@@ -269,10 +322,35 @@ EquineLog/
 | Model editing | Detail views | `@Bindable` (SwiftData) |
 | Environment values | Injected context | `@Environment` |
 | User defaults | App preferences | `@AppStorage` |
+| Onboarding state | App-wide singleton | `OnboardingManager.shared` |
 
 ---
 
-## 9. Build Configuration
+## 9. Feature Summary (MVP + Tier 1/2)
+
+### Core Features
+- **Feed Board**: AM/PM feeding tracker with toggle, mark all, undo
+- **Health Timeline**: Event tracking with filters by type and horse
+- **Weather Dashboard**: Blanket recommendations via WeatherKit
+- **Horse Profiles**: Detail view with analytics and PDF reports
+
+### Premium Features (Tier 1 - Friction Reduction)
+- Real-time form validation with animated indicators
+- Toast notifications on save actions
+- Undo banner for feed toggles (4-second window)
+- "Mark All Fed" bulk action
+- Loading states on save buttons
+
+### Premium Features (Tier 2)
+- Horse-specific health filter (filter events by horse)
+- Feed template library (save, apply, reuse schedules)
+- Edit existing health events (tap to edit)
+- Interactive onboarding tutorial (5 steps)
+- Quick Tips guide in Settings
+
+---
+
+## 10. Build Configuration
 
 | Setting | Value |
 |---------|-------|
@@ -280,3 +358,16 @@ EquineLog/
 | Swift Version | 6.0 |
 | Required Capabilities | WeatherKit, Location |
 | Entitlements Needed | `com.apple.developer.weatherkit` |
+| Architecture | arm64 (Apple Silicon + A-series) |
+
+---
+
+## 11. Testing Infrastructure
+
+| Test Suite | Framework | Coverage |
+|------------|-----------|----------|
+| Unit Tests | Swift Testing | FormValidation, BlanketRecommendation |
+| Integration | Swift Testing | LocationManager, WeatherService |
+| Utility Tests | Swift Testing | FeedSlot, StringUtilities, Calendar |
+
+**Test File:** `EquineLogTests/LocationManagerTests.swift`

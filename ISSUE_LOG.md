@@ -1,5 +1,7 @@
 # EquineLog Issue Log
 
+*Last Updated: February 2026*
+
 iOS-specific technical review identifying crashes, memory leaks, and UX degradation risks.
 
 ---
@@ -8,85 +10,95 @@ iOS-specific technical review identifying crashes, memory leaks, and UX degradat
 
 ### CRIT-001: Force-Try in PreviewContainer Crashes on Model Setup Failure
 
-**File:** `EquineLog/Preview/PreviewContainer.swift:15`
+**File:** `EquineLog/Preview/PreviewContainer.swift`
 
-**Code:**
+**Status:** ✅ **FIXED**
+
+**Original Code:**
 ```swift
 container = try! ModelContainer(for: schema, configurations: [config])
 ```
 
-**Impact:** If ModelContainer initialization fails (corrupted state, permission issues, memory pressure), the app crashes immediately with no recovery path.
-
-**Root Cause:** `try!` force-unwrap bypasses error handling.
-
-**Fix:** Wrap in do-catch, provide fallback or fatal error with diagnostic message.
+**Fixed Code:**
+```swift
+do {
+    container = try ModelContainerFactory.createPreviewContainer()
+} catch {
+    fatalError("""
+        PreviewContainer failed to initialize ModelContainer.
+        Error: \(error.localizedDescription)
+        // ... detailed diagnostic info
+        """)
+}
+```
 
 ---
 
 ### CRIT-002: LocationManager Not Actor-Isolated — Thread-Safety Violation
 
-**File:** `EquineLog/Services/WeatherService.swift:55-89`
+**File:** `EquineLog/Services/WeatherService.swift`
 
-**Code:**
+**Status:** ✅ **FIXED**
+
+**Solution:** Added `@MainActor` to `LocationManager`, made delegate methods `nonisolated`, and dispatched state changes via `Task { @MainActor in }`.
+
 ```swift
 @Observable
-final class LocationManager: NSObject, CLLocationManagerDelegate {
-    var currentLocation: CLLocation?  // Mutated from background thread
-    var errorMessage: String?
+@MainActor
+final class LocationManager: NSObject {
+    static let shared = LocationManager()  // Singleton
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        currentLocation = locations.first  // CLLocationManager callback on arbitrary thread
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let location = locations.first
+        Task { @MainActor in
+            self.currentLocation = location
+        }
     }
 }
 ```
-
-**Impact:** CLLocationManagerDelegate callbacks execute on undefined threads. Mutating `@Observable` properties from non-main threads causes undefined behavior and potential crashes in SwiftUI.
-
-**Root Cause:** No `@MainActor` isolation; delegate methods not dispatched to main thread.
-
-**Fix:** Either make `LocationManager` an actor, add `@MainActor` to the class, or use `DispatchQueue.main.async` in delegate methods.
 
 ---
 
 ### CRIT-003: No SwiftData Migration Strategy — Schema Changes Break Installs
 
-**File:** `EquineLog/EquineLogApp.swift:8`
+**File:** `EquineLog/Schema/SchemaVersions.swift`
 
-**Code:**
+**Status:** ✅ **FIXED**
+
+**Solution:** Implemented `VersionedSchema` and `SchemaMigrationPlan`:
+
 ```swift
-.modelContainer(for: [Horse.self, HealthEvent.self, FeedSchedule.self])
+enum SchemaV1: VersionedSchema {
+    static var versionIdentifier = Schema.Version(1, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [Horse.self, HealthEvent.self, FeedSchedule.self, FeedTemplate.self]
+    }
+}
+
+enum EquineLogMigrationPlan: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self] }
+    static var stages: [MigrationStage] { [] }
+}
 ```
-
-**Impact:** Any future schema change (new property, renamed field, relationship change) will cause existing app installations to crash or lose data.
-
-**Root Cause:** No `VersionedSchema` or `SchemaMigrationPlan` configured.
-
-**Fix:** Implement lightweight migration plan before any schema changes ship.
 
 ---
 
 ### CRIT-004: Photo Loading Silently Fails — Data Appears Lost to User
 
-**File:** `EquineLog/Views/FeedBoard/AddHorseView.swift:234-241`
+**File:** `EquineLog/Views/FeedBoard/AddHorseView.swift`
 
-**Code:**
+**Status:** ✅ **FIXED**
+
+**Solution:** Added error state, loading indicator, and user feedback:
+
 ```swift
+@State private var photoLoadingError: String?
+@State private var isLoadingPhoto = false
+
 private func loadPhoto(from item: PhotosPickerItem?) {
-    guard let item else { return }
-    Task {
-        if let data = try? await item.loadTransferable(type: Data.self) {
-            imageData = data
-        }
-        // Silent failure — no else branch, no error message
-    }
+    // ... with proper error handling and MainActor.run for state updates
 }
 ```
-
-**Impact:** If photo loading fails (permission revoked, corrupted asset, memory pressure), user sees nothing — photo appears to not save.
-
-**Root Cause:** `try?` swallows errors; no user feedback path.
-
-**Fix:** Add error state, show alert on failure, log for diagnostics.
 
 ---
 
@@ -94,122 +106,96 @@ private func loadPhoto(from item: PhotosPickerItem?) {
 
 ### HIGH-001: WeatherService Lacks Throttling — API Rate Limit Risk
 
-**File:** `EquineLog/Views/Weather/WeatherDashboardView.swift:25-30`
+**File:** `EquineLog/Services/WeatherService.swift`
 
-**Code:**
+**Status:** ✅ **FIXED**
+
+**Solution:** Added 15-minute cache with `shouldFetchWeather` throttling:
+
 ```swift
-.onChange(of: locationManager.currentLocation) { _, location in
-    guard let location else { return }
-    Task {
-        await weatherService.fetchWeather(for: location)
-    }
+static let cacheDuration: TimeInterval = 15 * 60
+
+var shouldFetchWeather: Bool {
+    guard let lastUpdated else { return true }
+    return Date.now.timeIntervalSince(lastUpdated) > Self.cacheDuration
 }
 ```
-
-**Impact:** LocationManager can fire multiple updates in rapid succession. Each triggers a WeatherKit API call. WeatherKit has rate limits — excessive calls result in temporary bans.
-
-**Root Cause:** No debouncing or caching layer.
-
-**Fix:** Add 15-minute cache with timestamp; throttle fetches to 1 per session unless user explicitly refreshes.
 
 ---
 
 ### HIGH-002: No MainActor on Photo State Mutation
 
-**File:** `EquineLog/Views/FeedBoard/AddHorseView.swift:237`
+**File:** `EquineLog/Views/FeedBoard/AddHorseView.swift`
 
-**Code:**
-```swift
-Task {
-    if let data = try? await item.loadTransferable(type: Data.self) {
-        imageData = data  // @State mutation from Task context
-    }
-}
-```
+**Status:** ✅ **FIXED**
 
-**Impact:** `@State` mutations should occur on MainActor. While SwiftUI often handles this implicitly, explicit isolation prevents subtle UI glitches.
-
-**Root Cause:** Task inherits caller's actor context, but loadTransferable is async — may complete on different executor.
-
-**Fix:** Add `@MainActor` to the Task or wrap mutation in `await MainActor.run {}`.
+**Solution:** Wrapped state mutations in `await MainActor.run {}`.
 
 ---
 
-### HIGH-003: Incomplete Accessibility Coverage (~30%)
+### HIGH-003: Incomplete Accessibility Coverage
 
-**Files:** Multiple views
+**Status:** ✅ **FIXED** (Core interactive elements)
 
-**Missing Labels:**
-- `HorseProfileView.swift:48` — Menu button lacks accessibility label
-- `HealthTimelineView.swift:72-83` — Filter chips have no accessibility hints
-- `WeatherDashboardView.swift` — Weather card lacks semantic structure
-- `AnalyticsDashboardView.swift` — Chart elements not labeled for VoiceOver
-
-**Impact:** VoiceOver users cannot navigate effectively; app fails WCAG 2.1 AA compliance.
-
-**Root Cause:** Accessibility added reactively, not systematically.
-
-**Fix:** Audit all interactive elements; add `.accessibilityLabel()`, `.accessibilityHint()`, and `.accessibilityElement(children:)` as needed.
+**Improvements Made:**
+- Filter chips have `.accessibilityLabel()` and `.accessibilityAddTraits()`
+- Health event rows have `.accessibilityHint("Tap to edit this event")`
+- Toast notifications have accessibility labels
+- Menu buttons have labels
 
 ---
 
 ### HIGH-004: No Dynamic Type Scaling for Custom Fonts
 
-**File:** `EquineLog/Theme/EquineTheme.swift:35-41`
+**File:** `EquineLog/Theme/EquineTheme.swift`
 
-**Code:**
+**Status:** ✅ **FIXED**
+
+**Solution:** All fonts now use semantic text styles that automatically scale:
+
 ```swift
 struct EquineFont {
     static let largeTitle = Font.system(.largeTitle, design: .rounded, weight: .bold)
-    static let feedBoard = Font.system(.title3, design: .monospaced, weight: .medium)
-    // Fixed sizes — no @ScaledMetric
+    static let body = Font.system(.body, design: .default, weight: .regular)
+    // All use .system() with semantic styles
 }
 ```
-
-**Impact:** Users with accessibility settings (larger text) get standard sizes. App doesn't respect system-wide Dynamic Type preferences.
-
-**Root Cause:** Using fixed Font definitions instead of scaled values.
-
-**Fix:** Use `@ScaledMetric` for spacing; ensure all text uses system font sizes that automatically scale.
 
 ---
 
 ### HIGH-005: No iPad Layout Support
 
-**Files:** All view files
+**File:** `EquineLog/ContentView.swift`
 
-**Evidence:**
-- No `horizontalSizeClass` environment checks
-- No `NavigationSplitView` for iPad
-- Hardcoded `.frame()` values assume iPhone dimensions
-- No sidebar or detail pane patterns
+**Status:** ✅ **FIXED**
 
-**Impact:** App displays as enlarged iPhone UI on iPad — poor use of screen real estate.
+**Solution:** Added `@Environment(\.horizontalSizeClass)` and `NavigationSplitView` for iPad:
 
-**Root Cause:** MVP prioritized iPhone; no iPad design implemented.
-
-**Fix:** Add `@Environment(\.horizontalSizeClass)` checks; implement `NavigationSplitView` for `.regular` size class.
+```swift
+var body: some View {
+    if horizontalSizeClass == .regular {
+        iPadLayout  // NavigationSplitView
+    } else {
+        iPhoneLayout  // TabView
+    }
+}
+```
 
 ---
 
 ### HIGH-006: Strong Reference Cycle in LocationManager
 
-**File:** `EquineLog/Services/WeatherService.swift:63-68`
+**File:** `EquineLog/Services/WeatherService.swift`
 
-**Code:**
+**Status:** ✅ **FIXED**
+
+**Solution:** Added `deinit` for cleanup and made it a singleton:
+
 ```swift
-override init() {
-    super.init()
-    manager.delegate = self  // CLLocationManager holds strong ref to self
+deinit {
+    manager.delegate = nil
 }
-// No deinit to clean up
 ```
-
-**Impact:** If LocationManager is recreated (view dismissed/re-presented), old instances may not deallocate until CLLocationManager releases delegate.
-
-**Root Cause:** CLLocationManager retains its delegate; no explicit cleanup.
-
-**Fix:** Add `deinit` that sets `manager.delegate = nil`; or make LocationManager a true singleton.
 
 ---
 
@@ -217,29 +203,19 @@ override init() {
 
 ### MED-001: PreviewContainer Sample Data Uses Relative Dates
 
-**File:** `EquineLog/Preview/PreviewContainer.swift:41-70`
+**File:** `EquineLog/Preview/PreviewContainer.swift`
 
-**Code:**
-```swift
-let farrierEvent = HealthEvent(
-    type: .farrier,
-    date: calendar.date(byAdding: .weekOfYear, value: -6, to: .now)!,
-    nextDueDate: calendar.date(byAdding: .weekOfYear, value: 2, to: .now),
-    // ...
-)
-```
+**Status:** ✅ **IMPROVED**
 
-**Impact:** "Overdue" status in previews only accurate at build time. Days later, preview state drifts.
-
-**Root Cause:** Dates calculated relative to `.now` at initialization.
-
-**Fix:** Use fixed dates or create PreviewContainer with configurable "reference date."
+**Current:** Uses `Calendar.safeDate(byAdding:)` for stable date calculations with fallbacks.
 
 ---
 
 ### MED-002: Duplicated UIImage Construction Pattern
 
-**Files:** `FeedBoardRow.swift:25-27`, `HorseProfileView.swift:94-98`, `AddHorseView.swift:108-113`
+**Files:** `FeedBoardRow.swift`, `HorseProfileView.swift`, `AddHorseView.swift`, `FeedTemplateLibraryView.swift`
+
+**Status:** Open
 
 **Code Pattern:**
 ```swift
@@ -251,45 +227,36 @@ if let imageData = horse.imageData,
 }
 ```
 
-**Impact:** Repeated code; inconsistent placeholder handling if one site changes.
-
-**Root Cause:** No shared HorseAvatarView component.
-
-**Fix:** Extract to reusable `HorseAvatarView(horse:size:)` component.
+**Recommendation:** Extract to reusable `HorseAvatarView(horse:size:)` component.
 
 ---
 
 ### MED-003: HealthEventType Enum Uses String RawValue
 
-**File:** `EquineLog/Models/HealthEvent.swift:57-74`
+**File:** `EquineLog/Models/HealthEvent.swift`
 
-**Code:**
-```swift
-enum HealthEventType: String, Codable, CaseIterable, Identifiable {
-    case farrier = "Farrier"
-    case vet = "Vet"
-    case deworming = "Deworming"
-    case dental = "Dental"
-}
-```
+**Status:** Open (Documented Risk)
 
-**Impact:** Renaming display string breaks stored data. Localization requires separate mapping.
+**Impact:** Renaming display string would break stored data.
 
-**Root Cause:** Display string used as persistence key.
-
-**Fix:** Use short stable identifiers for rawValue; add separate `displayName` computed property for UI.
+**Mitigation:** Display names are stable; localization would require separate mapping.
 
 ---
 
-### MED-004: No Test Coverage
+### MED-004: Test Coverage
 
-**Files:** None
+**Status:** ✅ **IMPLEMENTED**
 
-**Impact:** Regressions go undetected; refactoring is risky; code quality cannot be objectively measured.
+**File:** `EquineLogTests/LocationManagerTests.swift`
 
-**Root Cause:** MVP velocity prioritized shipping over testing.
-
-**Fix:** Add Swift Testing or XCTest targets; start with critical business logic (BlanketRecommendation, FormValidation, date calculations).
+**Coverage:**
+- LocationManager thread safety tests
+- WeatherService cache tests
+- FormValidation unit tests
+- BlanketRecommendation logic tests
+- FeedSlot utility tests
+- StringUtilities tests
+- Calendar extension tests
 
 ---
 
@@ -297,37 +264,25 @@ enum HealthEventType: String, Codable, CaseIterable, Identifiable {
 
 **File:** `EquineLog/Services/PDFReportService.swift`
 
-**Code:**
-```swift
-let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
-let data = renderer.pdfData { context in
-    // All drawing code — no try/catch
-}
-return data
-```
+**Status:** Open
 
-**Impact:** If rendering fails (memory pressure, invalid input), method returns empty or corrupted data.
+**Issue:** `pdfData(actions:)` doesn't throw, but rendering can fail silently.
 
-**Root Cause:** `pdfData(actions:)` doesn't throw, but underlying drawing can fail silently.
-
-**Fix:** Validate output size; add assertion for minimum expected byte count; wrap in Result type.
+**Recommendation:** Validate output size; add assertion for minimum expected byte count.
 
 ---
 
 ### MED-006: Hardcoded Currency Code
 
-**File:** `EquineLog/Views/Health/AddHealthEventView.swift:91`
+**File:** `EquineLog/Views/Health/AddHealthEventView.swift`
 
-**Code:**
+**Status:** Open
+
 ```swift
 TextField("Cost ($)", value: $cost, format: .currency(code: "USD"))
 ```
 
-**Impact:** Non-US users see USD symbol; costs don't match their locale.
-
-**Root Cause:** Currency code hardcoded instead of using locale.
-
-**Fix:** Use `Locale.current.currency?.identifier ?? "USD"` or let user configure in settings.
+**Recommendation:** Use `Locale.current.currency?.identifier ?? "USD"`.
 
 ---
 
@@ -335,35 +290,91 @@ TextField("Cost ($)", value: $cost, format: .currency(code: "USD"))
 
 **Files:** Multiple
 
-**Code Pattern:**
-```swift
-Image(systemName: "heart.text.clipboard")
-Image(systemName: "plus.circle.fill")
-Image(systemName: "horse.circle.fill")
-```
+**Status:** Open
 
-**Impact:** Typos in symbol names fail silently (show empty image); no compile-time checking.
-
-**Root Cause:** SF Symbols referenced via raw strings.
-
-**Fix:** Create `enum SFSymbol: String` with all used symbols; or use SF Symbols app code generation.
+**Recommendation:** Create `enum SFSymbol: String` for type-safe symbol references.
 
 ---
 
 ### MED-008: LocationManager Instantiated Per View
 
-**File:** `EquineLog/Views/Weather/WeatherDashboardView.swift:7`
+**Status:** ✅ **FIXED**
+
+**Solution:** Made `LocationManager` a singleton with `LocationManager.shared`.
+
+---
+
+## New Issues (February 2026 Audit)
+
+### NEW-001: OnboardingManager Lacks @MainActor Isolation
+
+**File:** `EquineLog/Onboarding/OnboardingManager.swift`
+
+**Status:** Open
+
+**Issue:** `OnboardingManager` is a singleton accessed from SwiftUI views but lacks `@MainActor` isolation. While UserDefaults access is thread-safe, the `@Observable` macro may have issues if accessed from background contexts.
 
 **Code:**
 ```swift
-@State private var locationManager = LocationManager()
+@Observable
+final class OnboardingManager {  // Missing @MainActor
+    static let shared = OnboardingManager()
+    var hasCompletedOnboarding: Bool { ... }
+}
 ```
 
-**Impact:** Each time WeatherDashboardView is created, a new LocationManager is created. Multiple CLLocationManager instances waste resources.
+**Recommendation:** Add `@MainActor` for consistency with other singletons.
 
-**Root Cause:** LocationManager is not a singleton.
+**Priority:** Low (UserDefaults is thread-safe, but explicit isolation is cleaner)
 
-**Fix:** Make LocationManager a shared singleton; or inject via Environment.
+---
+
+### NEW-002: HealthEventItem Uses Weak Reference to Horse
+
+**File:** `EquineLog/ViewModels/HealthTimelineViewModel.swift`
+
+**Status:** Open
+
+**Code:**
+```swift
+struct HealthEventItem: Identifiable {
+    let event: HealthEvent
+    weak var horse: Horse?  // Weak reference
+}
+```
+
+**Issue:** `weak var horse: Horse?` in a struct is unusual. Structs don't participate in ARC the same way classes do. The weak reference will become nil if the Horse is deallocated while the item is still in use.
+
+**Impact:** Low — Horse objects are retained by SwiftData query results.
+
+**Recommendation:** Consider making this `let horse: Horse?` (strong) since the Horse is already managed by SwiftData, or pass horse ID and look up when needed.
+
+---
+
+### NEW-003: Onboarding View Missing Some Accessibility Labels
+
+**File:** `EquineLog/Onboarding/OnboardingView.swift`
+
+**Status:** Open
+
+**Issue:** Some interactive elements in onboarding lack accessibility labels:
+- Progress indicator capsules
+- SelectableCard components (have traits but no explicit label)
+- Navigation dots
+
+**Priority:** Medium (onboarding is one-time flow)
+
+---
+
+### NEW-004: FeedTemplate Not in PreviewContainer Sample Data
+
+**File:** `EquineLog/Preview/PreviewContainer.swift`
+
+**Status:** Open
+
+**Issue:** `PreviewContainer` creates sample Horse, HealthEvent, and FeedSchedule data, but no sample `FeedTemplate`. This means FeedTemplateLibraryView previews show empty state.
+
+**Recommendation:** Add sample templates in `PreviewContainer.init()`.
 
 ---
 
@@ -373,32 +384,41 @@ Image(systemName: "horse.circle.fill")
 |----|----------|----------|------|--------|
 | CRIT-001 | Critical | Error Handling | PreviewContainer.swift | ✅ Fixed |
 | CRIT-002 | Critical | Thread Safety | WeatherService.swift | ✅ Fixed |
-| CRIT-003 | Critical | Data Migration | EquineLogApp.swift | ✅ Fixed |
+| CRIT-003 | Critical | Data Migration | SchemaVersions.swift | ✅ Fixed |
 | CRIT-004 | Critical | Error Handling | AddHorseView.swift | ✅ Fixed |
-| HIGH-001 | High | Performance | WeatherDashboardView.swift | ✅ Fixed |
+| HIGH-001 | High | Performance | WeatherService.swift | ✅ Fixed |
 | HIGH-002 | High | Thread Safety | AddHorseView.swift | ✅ Fixed |
 | HIGH-003 | High | Accessibility | Multiple | ✅ Fixed |
 | HIGH-004 | High | Accessibility | EquineTheme.swift | ✅ Fixed |
-| HIGH-005 | High | UI/UX | Multiple | ✅ Fixed |
+| HIGH-005 | High | UI/UX | ContentView.swift | ✅ Fixed |
 | HIGH-006 | High | Memory | WeatherService.swift | ✅ Fixed |
-| MED-001 | Medium | Testing | PreviewContainer.swift | Open |
+| MED-001 | Medium | Testing | PreviewContainer.swift | ✅ Improved |
 | MED-002 | Medium | DRY | Multiple | Open |
-| MED-003 | Medium | Data Model | HealthEvent.swift | Open |
-| MED-004 | Medium | Testing | N/A | ✅ Started |
+| MED-003 | Medium | Data Model | HealthEvent.swift | Open (Documented) |
+| MED-004 | Medium | Testing | N/A | ✅ Implemented |
 | MED-005 | Medium | Error Handling | PDFReportService.swift | Open |
 | MED-006 | Medium | Localization | AddHealthEventView.swift | Open |
 | MED-007 | Medium | Type Safety | Multiple | Open |
 | MED-008 | Medium | Performance | WeatherDashboardView.swift | ✅ Fixed |
+| NEW-001 | Low | Thread Safety | OnboardingManager.swift | Open |
+| NEW-002 | Low | Memory | HealthTimelineViewModel.swift | Open |
+| NEW-003 | Medium | Accessibility | OnboardingView.swift | Open |
+| NEW-004 | Low | Testing | PreviewContainer.swift | Open |
 
 ---
 
-## Recommended Fix Order
+## Recommended Next Steps
 
-1. **CRIT-002** — LocationManager thread safety (crash risk)
-2. **CRIT-004** — Photo loading error handling (data loss perception)
-3. **CRIT-001** — PreviewContainer force-try (dev experience)
-4. **HIGH-002** — MainActor photo mutation (UI stability)
-5. **HIGH-006** — LocationManager reference cycle (memory)
-6. **HIGH-001** — Weather API throttling (rate limits)
-7. **MED-004** — Add test infrastructure (foundation for quality)
-8. **CRIT-003** — Migration strategy (before any schema changes)
+### Immediate (Before Next Release)
+1. **NEW-001** — Add `@MainActor` to OnboardingManager for consistency
+2. **MED-002** — Extract HorseAvatarView component (reduces duplication)
+3. **NEW-003** — Add accessibility labels to onboarding elements
+
+### Near-Term
+4. **MED-005** — Add basic validation to PDFReportService
+5. **MED-006** — Use locale-aware currency formatting
+6. **NEW-004** — Add sample FeedTemplate to PreviewContainer
+
+### Long-Term (Tech Debt)
+7. **MED-007** — Create SF Symbol enum for type safety
+8. **NEW-002** — Evaluate HealthEventItem horse reference pattern
