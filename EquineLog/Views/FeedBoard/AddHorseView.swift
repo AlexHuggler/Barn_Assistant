@@ -30,10 +30,16 @@ struct AddHorseView: View {
 
     // Validation
     @State private var hasAttemptedSave = false
+    @State private var nameFieldTouched = false
+    @State private var ownerFieldTouched = false
 
     // Photo loading state
     @State private var isLoadingPhoto = false
     @State private var photoLoadingError: String?
+
+    // Save state
+    @State private var isSaving = false
+    @State private var showSuccessToast = false
 
     var body: some View {
         NavigationStack {
@@ -50,11 +56,21 @@ struct AddHorseView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { attemptSave() }
-                        .disabled(!isFormValid)
-                        .fontWeight(.semibold)
+                    Button {
+                        attemptSave()
+                    } label: {
+                        if isSaving {
+                            ProgressView()
+                                .tint(Color.hunterGreen)
+                        } else {
+                            Text("Save")
+                        }
+                    }
+                    .disabled(!isFormValid || isSaving)
+                    .fontWeight(.semibold)
                 }
             }
             .onChange(of: selectedPhoto) { _, newValue in
@@ -63,6 +79,7 @@ struct AddHorseView: View {
             .onChange(of: copyFromHorse) { _, horse in
                 if let horse { applyDefaults(from: horse) }
             }
+            .toast(isShowing: $showSuccessToast, message: "\(name) added!", icon: "checkmark.circle.fill", color: .pastureGreen)
         }
     }
 
@@ -85,25 +102,62 @@ struct AddHorseView: View {
     private var horseDetailsSection: some View {
         Section("Horse Details") {
             VStack(alignment: .leading, spacing: 4) {
-                TextField("Name", text: $name)
-                    .font(EquineFont.body)
-                    .autocorrectionDisabled()
-                if hasAttemptedSave, let msg = nameValidation.message {
+                HStack {
+                    TextField("Name", text: $name)
+                        .font(EquineFont.body)
+                        .autocorrectionDisabled()
+                        .onChange(of: name) { _, _ in
+                            if !nameFieldTouched && !name.isEmpty {
+                                nameFieldTouched = true
+                            }
+                        }
+
+                    // Real-time validation indicator
+                    if nameFieldTouched || hasAttemptedSave {
+                        Image(systemName: nameValidation.isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .foregroundStyle(nameValidation.isValid ? Color.pastureGreen : Color.alertRed)
+                            .font(.body)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: nameValidation.isValid)
+
+                if (nameFieldTouched || hasAttemptedSave), let msg = nameValidation.message {
                     Text(msg)
                         .font(.caption)
                         .foregroundStyle(Color.alertRed)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
+            .animation(.easeInOut(duration: 0.15), value: nameValidation.message != nil)
 
             VStack(alignment: .leading, spacing: 4) {
-                TextField("Owner Name", text: $ownerName)
-                    .font(EquineFont.body)
-                if hasAttemptedSave, let msg = ownerValidation.message {
+                HStack {
+                    TextField("Owner Name", text: $ownerName)
+                        .font(EquineFont.body)
+                        .onChange(of: ownerName) { _, _ in
+                            if !ownerFieldTouched && !ownerName.isEmpty {
+                                ownerFieldTouched = true
+                            }
+                        }
+
+                    if ownerFieldTouched || hasAttemptedSave {
+                        Image(systemName: ownerValidation.isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .foregroundStyle(ownerValidation.isValid ? Color.pastureGreen : Color.alertRed)
+                            .font(.body)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: ownerValidation.isValid)
+
+                if (ownerFieldTouched || hasAttemptedSave), let msg = ownerValidation.message {
                     Text(msg)
                         .font(.caption)
                         .foregroundStyle(Color.alertRed)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
+            .animation(.easeInOut(duration: 0.15), value: ownerValidation.message != nil)
 
             VStack(alignment: .leading, spacing: 4) {
                 PhotosPicker(selection: $selectedPhoto, matching: .images) {
@@ -204,6 +258,8 @@ struct AddHorseView: View {
     }
 
     private func commitHorse() {
+        isSaving = true
+
         let schedule = FeedSchedule(
             amGrain: amGrain,
             amHay: amHay,
@@ -226,7 +282,15 @@ struct AddHorseView: View {
 
         modelContext.insert(horse)
         HapticManager.notification(.success)
-        dismiss()
+
+        // Show toast briefly before dismissing
+        withAnimation {
+            showSuccessToast = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            dismiss()
+        }
     }
 
     private func applyDefaults(from horse: Horse) {

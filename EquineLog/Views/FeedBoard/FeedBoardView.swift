@@ -74,10 +74,55 @@ struct FeedBoardView: View {
                     allFedBanner
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                if viewModel.showUndoBanner, let horse = viewModel.lastToggledHorse {
+                    undoBanner(for: horse)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.showUndoBanner)
             .onAppear {
                 viewModel.autoResetIfNewDay(horses: horses)
             }
         }
+    }
+
+    // MARK: - Undo Banner
+
+    private func undoBanner(for horse: Horse) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: viewModel.lastToggleWasFed ? "checkmark.circle.fill" : "circle")
+                .font(.body)
+                .foregroundStyle(.white)
+
+            Text(viewModel.lastToggleWasFed ? "\(horse.name) marked as fed" : "\(horse.name) unmarked")
+                .font(EquineFont.caption)
+                .foregroundStyle(.white)
+
+            Spacer()
+
+            Button {
+                withAnimation(.snappy(duration: 0.3)) {
+                    viewModel.undoLastToggle()
+                }
+            } label: {
+                Text("Undo")
+                    .font(EquineFont.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.hunterGreen)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.white)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.barnText)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal)
+        .padding(.bottom, 8)
     }
 
     // MARK: - Subviews
@@ -125,6 +170,9 @@ struct FeedBoardView: View {
                                 withAnimation(.snappy(duration: 0.3)) {
                                     viewModel.toggleFed(for: horse, allHorses: horses)
                                 }
+                            },
+                            onLogEvent: {
+                                viewModel.requestQuickLog(horse: horse)
                             }
                         )
                     }
@@ -160,6 +208,7 @@ struct FeedBoardView: View {
         let total = horses.count
         let fed = viewModel.fedCount(from: horses)
         let progress = total > 0 ? Double(fed) / Double(total) : 0
+        let hasUnfed = viewModel.hasUnfedHorses(horses)
 
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -170,10 +219,32 @@ struct FeedBoardView: View {
                     .font(EquineFont.caption)
                     .foregroundStyle(fed == total ? Color.pastureGreen : Color.barnText)
             }
-            ProgressView(value: progress)
-                .tint(fed == total ? Color.pastureGreen : Color.hunterGreen)
-                .animation(.easeInOut(duration: 0.4), value: progress)
+            HStack(spacing: 12) {
+                ProgressView(value: progress)
+                    .tint(fed == total ? Color.pastureGreen : Color.hunterGreen)
+                    .animation(.easeInOut(duration: 0.4), value: progress)
+
+                if hasUnfed {
+                    Button {
+                        withAnimation(.snappy(duration: 0.3)) {
+                            viewModel.markAllFed(horses)
+                        }
+                    } label: {
+                        Text("Mark All")
+                            .font(EquineFont.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.hunterGreen)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: hasUnfed)
     }
 
     private var emptyStateView: some View {

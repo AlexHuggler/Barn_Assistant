@@ -13,6 +13,12 @@ final class FeedBoardViewModel {
     var quickLogHorse: Horse?
     var allFedCelebration = false
 
+    // Undo state
+    var showUndoBanner = false
+    var lastToggledHorse: Horse?
+    var lastToggleWasFed: Bool = false
+    private var undoTimer: DispatchWorkItem?
+
     enum FedFilter: String, CaseIterable, Identifiable {
         case all = "All"
         case needsFeeding = "Needs Feeding"
@@ -56,6 +62,9 @@ final class FeedBoardViewModel {
         guard let schedule = horse.feedSchedule else { return }
         let slot = currentSlot
 
+        // Cancel any pending undo timer
+        undoTimer?.cancel()
+
         if slot == .am {
             schedule.amFedToday.toggle()
             schedule.amFedAt = schedule.amFedToday ? .now : nil
@@ -63,6 +72,11 @@ final class FeedBoardViewModel {
             schedule.pmFedToday.toggle()
             schedule.pmFedAt = schedule.pmFedToday ? .now : nil
         }
+
+        // Track for undo
+        lastToggledHorse = horse
+        lastToggleWasFed = isFed(horse: horse)
+        showUndoBanner = true
 
         // Haptic on toggle
         if isFed(horse: horse) {
@@ -77,6 +91,34 @@ final class FeedBoardViewModel {
             allFedCelebration = true
             HapticManager.notification(.success)
         }
+
+        // Auto-hide undo banner after 4 seconds
+        let timer = DispatchWorkItem { [weak self] in
+            self?.showUndoBanner = false
+            self?.lastToggledHorse = nil
+        }
+        undoTimer = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: timer)
+    }
+
+    func undoLastToggle() {
+        guard let horse = lastToggledHorse, let schedule = horse.feedSchedule else { return }
+        let slot = currentSlot
+
+        // Revert the toggle
+        if slot == .am {
+            schedule.amFedToday = !lastToggleWasFed
+            schedule.amFedAt = schedule.amFedToday ? .now : nil
+        } else {
+            schedule.pmFedToday = !lastToggleWasFed
+            schedule.pmFedAt = schedule.pmFedToday ? .now : nil
+        }
+
+        HapticManager.impact(.light)
+        undoTimer?.cancel()
+        showUndoBanner = false
+        lastToggledHorse = nil
+        allFedCelebration = false
     }
 
     func isFed(horse: Horse) -> Bool {
@@ -110,5 +152,45 @@ final class FeedBoardViewModel {
     func requestQuickLog(horse: Horse) {
         quickLogHorse = horse
         showingQuickLog = true
+    }
+
+    /// Returns true if there are unfed horses in the current slot.
+    func hasUnfedHorses(_ horses: [Horse]) -> Bool {
+        horses.contains { !isFed(horse: $0) }
+    }
+
+    /// Marks all horses as fed for the current slot.
+    func markAllFed(_ horses: [Horse]) {
+        let slot = currentSlot
+        for horse in horses {
+            guard let schedule = horse.feedSchedule else { continue }
+            if slot == .am && !schedule.amFedToday {
+                schedule.amFedToday = true
+                schedule.amFedAt = .now
+            } else if slot == .pm && !schedule.pmFedToday {
+                schedule.pmFedToday = true
+                schedule.pmFedAt = .now
+            }
+        }
+        // Trigger celebration
+        allFedCelebration = true
+        HapticManager.notification(.success)
+    }
+
+    /// Resets all fed status for the current slot (useful for undo).
+    func unmarkAllFed(_ horses: [Horse]) {
+        let slot = currentSlot
+        for horse in horses {
+            guard let schedule = horse.feedSchedule else { continue }
+            if slot == .am {
+                schedule.amFedToday = false
+                schedule.amFedAt = nil
+            } else {
+                schedule.pmFedToday = false
+                schedule.pmFedAt = nil
+            }
+        }
+        allFedCelebration = false
+        HapticManager.impact(.light)
     }
 }

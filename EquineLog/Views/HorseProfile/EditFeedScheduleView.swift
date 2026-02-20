@@ -14,6 +14,8 @@ struct EditFeedScheduleView: View {
     @State private var pmSupplementsText: String
     @State private var pmMedicationsText: String
     @State private var specialInstructions: String
+    @State private var isSaving = false
+    @State private var showSuccessToast = false
 
     init(horse: Horse) {
         self.horse = horse
@@ -56,16 +58,30 @@ struct EditFeedScheduleView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .fontWeight(.semibold)
+                    Button {
+                        save()
+                    } label: {
+                        if isSaving {
+                            ProgressView()
+                                .tint(Color.hunterGreen)
+                        } else {
+                            Text("Save")
+                        }
+                    }
+                    .disabled(isSaving)
+                    .fontWeight(.semibold)
                 }
             }
+            .toast(isShowing: $showSuccessToast, message: "Schedule saved!", icon: "checkmark.circle.fill", color: .pastureGreen)
         }
     }
 
     private func save() {
+        isSaving = true
+
         if let schedule = horse.feedSchedule {
             schedule.amGrain = amGrain
             schedule.amHay = amHay
@@ -92,7 +108,14 @@ struct EditFeedScheduleView: View {
         }
 
         HapticManager.notification(.success)
-        dismiss()
+
+        withAnimation {
+            showSuccessToast = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            dismiss()
+        }
     }
 }
 
