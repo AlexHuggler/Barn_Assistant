@@ -69,19 +69,8 @@ struct HorseProfileView: View {
 
     private var profileHeader: some View {
         VStack(spacing: 12) {
-            if let imageData = horse.imageData,
-               let uiImage = UIImage(data: imageData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 100, height: 100)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.hunterGreen, lineWidth: 3))
-            } else {
-                Image(systemName: "horse.circle.fill")
-                    .font(.system(size: 80))
-                    .foregroundStyle(Color.hunterGreen.opacity(0.4))
-            }
+            HorseAvatarView(horse: horse, size: 100)
+                .overlay(Circle().stroke(Color.hunterGreen, lineWidth: 3))
 
             VStack(spacing: 4) {
                 Text(horse.name)
@@ -291,7 +280,11 @@ struct HorseProfileView: View {
     // MARK: - PDF Generation
 
     private func generateAndShareReport() {
-        pdfData = PDFReportService.generateReport(for: horse)
+        guard let data = PDFReportService.generateReport(for: horse) else {
+            HapticManager.notification(.error)
+            return
+        }
+        pdfData = data
         showingShareSheet = true
     }
 }

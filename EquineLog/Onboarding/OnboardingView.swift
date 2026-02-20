@@ -68,6 +68,9 @@ struct OnboardingView: View {
                     .frame(height: 4)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(currentStep.rawValue + 1) of \(OnboardingStep.allCases.count)")
+        .accessibilityValue("\(Int((Double(currentStep.rawValue + 1) / Double(OnboardingStep.allCases.count)) * 100))% complete")
     }
 
     // MARK: - Step Views
@@ -364,6 +367,8 @@ struct OnboardingView: View {
                     .background(Color.white.opacity(0.8))
                     .clipShape(Capsule())
                 }
+                .accessibilityLabel("Go back")
+                .accessibilityHint("Return to previous step")
             }
 
             Spacer()
@@ -377,6 +382,8 @@ struct OnboardingView: View {
                         .font(EquineFont.body)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Skip tutorial")
+                .accessibilityHint("Skip onboarding and go directly to the app")
             }
 
             // Next / Get Started button
@@ -403,6 +410,8 @@ struct OnboardingView: View {
                 .background(Color.hunterGreen)
                 .clipShape(Capsule())
             }
+            .accessibilityLabel(currentStep == .quickStart ? "Get Started" : "Next step")
+            .accessibilityHint(currentStep == .quickStart ? "Complete onboarding and start using the app" : "Continue to next step")
         }
     }
 
@@ -505,6 +514,8 @@ struct SelectableCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityHint(isSelected ? "Selected" : "Double tap to select")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -544,6 +555,8 @@ struct UseCaseCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(useCase.displayName). \(useCase.description)")
+        .accessibilityHint(isSelected ? "Selected" : "Double tap to select")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
