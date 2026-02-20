@@ -15,6 +15,7 @@ struct AddHealthEventView: View {
     @State private var autoCalculateNextDue = true
     @State private var customNextDueDate: Date = .now
     @State private var hasAttemptedSave = false
+    @State private var costFieldTouched = false
 
     /// Collect previously used provider names for auto-suggest.
     private var knownProviders: [String] {
@@ -88,14 +89,33 @@ struct AddHealthEventView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        TextField("Cost ($)", value: $cost, format: .currency(code: "USD"))
-                            .keyboardType(.decimalPad)
-                        if hasAttemptedSave, let msg = FormValidation.validateCost(cost).message {
+                        HStack {
+                            TextField("Cost ($)", value: $cost, format: .currency(code: "USD"))
+                                .keyboardType(.decimalPad)
+                                .onChange(of: cost) { _, newValue in
+                                    if !costFieldTouched && newValue != nil {
+                                        costFieldTouched = true
+                                    }
+                                }
+
+                            if costFieldTouched || hasAttemptedSave {
+                                let validation = FormValidation.validateCost(cost)
+                                Image(systemName: validation.isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                    .foregroundStyle(validation.isValid ? Color.pastureGreen : Color.alertRed)
+                                    .font(.body)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                        }
+                        .animation(.easeInOut(duration: 0.2), value: FormValidation.validateCost(cost).isValid)
+
+                        if (costFieldTouched || hasAttemptedSave), let msg = FormValidation.validateCost(cost).message {
                             Text(msg)
                                 .font(.caption)
                                 .foregroundStyle(Color.alertRed)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.15), value: FormValidation.validateCost(cost).message != nil)
                 }
 
                 Section("Notes") {
@@ -110,11 +130,20 @@ struct AddHealthEventView: View {
                     if autoCalculateNextDue {
                         if let suggested = HealthEvent.suggestedNextDueDate(for: eventType, from: date) {
                             HStack {
-                                Text("Suggested")
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Suggested Next Due")
+                                        .font(EquineFont.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(suggested, style: .date)
+                                        .font(EquineFont.headline)
+                                        .foregroundStyle(Color.hunterGreen)
+                                }
                                 Spacer()
-                                Text(suggested, style: .date)
-                                    .foregroundStyle(.secondary)
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(Color.hunterGreen)
+                                    .symbolEffect(.pulse, options: .repeating.speed(0.5))
                             }
+                            .padding(.vertical, 4)
                         }
                         Text(eventType.defaultCycleDescription)
                             .font(EquineFont.caption)

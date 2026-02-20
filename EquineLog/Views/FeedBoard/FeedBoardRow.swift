@@ -5,17 +5,37 @@ struct FeedBoardRow: View {
     let isFed: Bool
     let currentSlot: String
     let onToggleFed: () -> Void
+    var onLogEvent: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 14) {
             horseAvatar
             feedContent
             Spacer()
+            quickLogButton
             fedToggle
         }
         .padding(.vertical, 6)
         .background(isFed ? Color.pastureGreen.opacity(0.04) : Color.clear)
         .animation(.easeInOut(duration: 0.25), value: isFed)
+    }
+
+    @ViewBuilder
+    private var quickLogButton: some View {
+        if let onLogEvent {
+            Button {
+                onLogEvent()
+            } label: {
+                Image(systemName: "heart.text.clipboard")
+                    .font(.body)
+                    .foregroundStyle(Color.hunterGreen)
+                    .padding(8)
+                    .background(Color.hunterGreen.opacity(0.1))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Log health event for \(horse.name)")
+        }
     }
 
     // MARK: - Subviews
@@ -105,15 +125,20 @@ struct FeedBoardRow: View {
             }
 
             if !schedule.specialInstructions.isEmpty {
-                HStack(spacing: 4) {
+                HStack(alignment: .top, spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption2)
                         .foregroundStyle(Color.saddleBrown)
                     Text(schedule.specialInstructions)
                         .font(EquineFont.caption)
                         .foregroundStyle(Color.saddleBrown)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .background(Color.saddleBrown.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
     }
@@ -137,8 +162,8 @@ struct FeedBoardRow: View {
 #Preview {
     let horse = PreviewContainer.sampleHorse()
     return List {
-        FeedBoardRow(horse: horse, isFed: false, currentSlot: "AM", onToggleFed: {})
-        FeedBoardRow(horse: horse, isFed: true, currentSlot: "PM", onToggleFed: {})
+        FeedBoardRow(horse: horse, isFed: false, currentSlot: "AM", onToggleFed: {}, onLogEvent: {})
+        FeedBoardRow(horse: horse, isFed: true, currentSlot: "PM", onToggleFed: {}, onLogEvent: {})
     }
     .modelContainer(PreviewContainer.shared.container)
 }

@@ -114,3 +114,89 @@ struct StatusBadge: View {
             .accessibilityLabel(text)
     }
 }
+
+// MARK: - Toast View
+
+struct ToastView: View {
+    let message: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.body)
+            Text(message)
+                .font(EquineFont.caption)
+                .fontWeight(.medium)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(color)
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+    }
+}
+
+// MARK: - Toast Modifier
+
+struct ToastModifier: ViewModifier {
+    @Binding var isShowing: Bool
+    let message: String
+    let icon: String
+    let color: Color
+    let duration: TimeInterval
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .top) {
+                if isShowing {
+                    ToastView(message: message, icon: icon, color: color)
+                        .padding(.top, 60)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    isShowing = false
+                                }
+                            }
+                        }
+                }
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isShowing)
+    }
+}
+
+extension View {
+    func toast(isShowing: Binding<Bool>, message: String, icon: String = "checkmark.circle.fill", color: Color = .pastureGreen, duration: TimeInterval = 2.0) -> some View {
+        modifier(ToastModifier(isShowing: isShowing, message: message, icon: icon, color: color, duration: duration))
+    }
+}
+
+// MARK: - Loading Button Style
+
+struct LoadingButtonStyle: ButtonStyle {
+    let isLoading: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            if isLoading {
+                ProgressView()
+                    .tint(.white)
+                    .scaleEffect(0.8)
+            }
+            configuration.label
+        }
+        .font(EquineFont.headline)
+        .foregroundStyle(.white)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(isLoading ? Color.hunterGreen.opacity(0.7) : Color.hunterGreen)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .opacity(configuration.isPressed ? 0.8 : 1.0)
+        .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+        .allowsHitTesting(!isLoading)
+    }
+}
