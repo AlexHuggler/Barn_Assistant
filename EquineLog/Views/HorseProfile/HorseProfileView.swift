@@ -228,7 +228,7 @@ struct HorseProfileView: View {
                     .font(EquineFont.body)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(horse.recentEvents.prefix(5)) { event in
+                ForEach(horse.recentEvents.prefix(10)) { event in
                     HStack(spacing: 10) {
                         Image(systemName: event.type.iconName)
                             .foregroundStyle(Color.hunterGreen)

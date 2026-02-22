@@ -31,6 +31,20 @@ struct AddHealthEventView: View {
         return Array(Set(all)).sorted()
     }
 
+    /// Providers that match the current input (or all if empty).
+    private var matchingProviders: [String] {
+        guard !knownProviders.isEmpty else { return [] }
+        let trimmed = providerName.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty {
+            return knownProviders
+        }
+        // Don't show suggestions if the user already picked an exact match
+        if knownProviders.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return []
+        }
+        return knownProviders.filter { $0.localizedCaseInsensitiveContains(trimmed) }
+    }
+
     /// Auto-select the single horse if only one is provided (quick-log from feed board).
     init(horses: [Horse], existingEvent: HealthEvent? = nil, horse: Horse? = nil) {
         self.horses = horses
@@ -98,10 +112,10 @@ struct AddHealthEventView: View {
                     // Provider with auto-suggest
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Provider Name", text: $providerName)
-                        if !knownProviders.isEmpty && providerName.isEmpty {
+                        if !matchingProviders.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(knownProviders, id: \.self) { provider in
+                                    ForEach(matchingProviders, id: \.self) { provider in
                                         Button(provider) {
                                             providerName = provider
                                             HapticManager.selection()

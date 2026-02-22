@@ -12,6 +12,7 @@ final class FeedBoardViewModel {
     var showingQuickLog = false
     var quickLogHorse: Horse?
     var allFedCelebration = false
+    var showMarkAllFedToast = false
 
     // Undo state
     var showUndoBanner = false
@@ -172,8 +173,9 @@ final class FeedBoardViewModel {
                 schedule.pmFedAt = .now
             }
         }
-        // Trigger celebration
+        // Trigger celebration and toast
         allFedCelebration = true
+        showMarkAllFedToast = true
         HapticManager.notification(.success)
     }
 

@@ -166,24 +166,40 @@ struct AddHorseView: View {
             .animation(.easeInOut(duration: 0.15), value: ownerValidation.message != nil)
 
             VStack(alignment: .leading, spacing: 4) {
-                PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                    HStack {
-                        Text("Photo")
-                        Spacer()
-                        if isLoadingPhoto {
-                            ProgressView()
-                                .frame(width: 44, height: 44)
-                        } else if let imageData, let uiImage = UIImage(data: imageData) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 44, height: 44)
-                                .clipShape(Circle())
-                        } else {
-                            Image(systemName: "camera.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(Color.hunterGreen)
+                HStack {
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        HStack {
+                            Text("Photo")
+                            Spacer()
+                            if isLoadingPhoto {
+                                ProgressView()
+                                    .frame(width: 44, height: 44)
+                            } else if let imageData, let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 44, height: 44)
+                                    .clipShape(Circle())
+                            } else {
+                                Image(systemName: "camera.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(Color.hunterGreen)
+                            }
                         }
+                    }
+
+                    if imageData != nil {
+                        Button {
+                            imageData = nil
+                            selectedPhoto = nil
+                            HapticManager.impact(.light)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Color.alertRed.opacity(0.7))
+                                .font(.title3)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove photo")
                     }
                 }
 
@@ -253,11 +269,40 @@ struct AddHorseView: View {
 
     private var pmFeedSection: some View {
         Section("PM Feed") {
+            if hasAMFeedData {
+                Button {
+                    copyAMtoPM()
+                    HapticManager.selection()
+                } label: {
+                    HStack {
+                        Image(systemName: "doc.on.doc")
+                            .foregroundStyle(Color.hunterGreen)
+                        Text("Copy AM Feed to PM")
+                            .foregroundStyle(Color.barnText)
+                        Spacer()
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundStyle(Color.hunterGreen)
+                    }
+                    .font(EquineFont.caption)
+                }
+                .accessibilityHint("Copies all AM feed fields into PM feed fields")
+            }
             TextField("Grain", text: $pmGrain)
             TextField("Hay", text: $pmHay)
             TextField("Supplements (comma-separated)", text: $pmSupplementsText)
             TextField("Medications (comma-separated)", text: $pmMedicationsText)
         }
+    }
+
+    private var hasAMFeedData: Bool {
+        !amGrain.isEmpty || !amHay.isEmpty || !amSupplementsText.isEmpty || !amMedicationsText.isEmpty
+    }
+
+    private func copyAMtoPM() {
+        pmGrain = amGrain
+        pmHay = amHay
+        pmSupplementsText = amSupplementsText
+        pmMedicationsText = amMedicationsText
     }
 
     private var instructionsSection: some View {
