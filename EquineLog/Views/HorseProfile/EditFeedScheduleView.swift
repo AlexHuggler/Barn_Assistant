@@ -46,6 +46,24 @@ struct EditFeedScheduleView: View {
                 }
 
                 Section("PM Feed") {
+                    if hasAMFeedData {
+                        Button {
+                            copyAMtoPM()
+                            HapticManager.selection()
+                        } label: {
+                            HStack {
+                                Image(systemName: "doc.on.doc")
+                                    .foregroundStyle(Color.hunterGreen)
+                                Text("Copy AM Feed to PM")
+                                    .foregroundStyle(Color.barnText)
+                                Spacer()
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .foregroundStyle(Color.hunterGreen)
+                            }
+                            .font(EquineFont.caption)
+                        }
+                        .accessibilityHint("Copies all AM feed fields into PM feed fields")
+                    }
                     TextField("Grain", text: $pmGrain)
                     TextField("Hay", text: $pmHay)
                     TextField("Supplements (comma-separated)", text: $pmSupplementsText)
@@ -115,6 +133,17 @@ struct EditFeedScheduleView: View {
                 Text("Give this template a name so you can apply it to other horses later.")
             }
         }
+    }
+
+    private var hasAMFeedData: Bool {
+        !amGrain.isEmpty || !amHay.isEmpty || !amSupplementsText.isEmpty || !amMedicationsText.isEmpty
+    }
+
+    private func copyAMtoPM() {
+        pmGrain = amGrain
+        pmHay = amHay
+        pmSupplementsText = amSupplementsText
+        pmMedicationsText = amMedicationsText
     }
 
     private func save() {

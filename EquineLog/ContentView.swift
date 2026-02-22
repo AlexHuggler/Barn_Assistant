@@ -1,9 +1,12 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .stable
     @State private var onboardingManager = OnboardingManager.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage("hasSeededDefaultTemplates") private var hasSeededDefaultTemplates = false
 
     var body: some View {
         Group {
@@ -18,6 +21,58 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: onboardingManager.hasCompletedOnboarding)
+        .onChange(of: onboardingManager.hasCompletedOnboarding) { _, completed in
+            if completed { seedDefaultTemplatesIfNeeded() }
+        }
+        .onAppear {
+            seedDefaultTemplatesIfNeeded()
+        }
+    }
+
+    private func seedDefaultTemplatesIfNeeded() {
+        guard !hasSeededDefaultTemplates, onboardingManager.hasCompletedOnboarding else { return }
+        hasSeededDefaultTemplates = true
+
+        let defaults: [(name: String, description: String, amGrain: String, amHay: String, pmGrain: String, pmHay: String, instructions: String)] = [
+            ("Hay Only",
+             "Basic hay diet, no grain",
+             "", "2 flakes Timothy",
+             "", "2 flakes Timothy",
+             ""),
+            ("Grain + Hay (Standard)",
+             "Common daily ration for an average adult horse",
+             "2 qt SafeChoice", "2 flakes Timothy",
+             "2 qt SafeChoice", "2 flakes Timothy",
+             ""),
+            ("Light Work",
+             "Reduced grain for easy keepers or light riding",
+             "1 qt SafeChoice", "2 flakes Mixed",
+             "", "2 flakes Mixed",
+             "Monitor weight weekly"),
+            ("Performance",
+             "Higher calorie diet for horses in heavy work",
+             "3 qt Ultium", "3 flakes Orchard/Alfalfa mix",
+             "3 qt Ultium", "3 flakes Orchard/Alfalfa mix",
+             "Electrolytes in water bucket after exercise"),
+            ("Senior",
+             "Easily digestible ration for older horses",
+             "2 qt Senior feed", "2 flakes soft Timothy",
+             "2 qt Senior feed", "2 flakes soft Timothy",
+             "Soak grain if needed. Monitor teeth.")
+        ]
+
+        for t in defaults {
+            let template = FeedTemplate(
+                name: t.name,
+                description: t.description,
+                amGrain: t.amGrain,
+                amHay: t.amHay,
+                pmGrain: t.pmGrain,
+                pmHay: t.pmHay,
+                specialInstructions: t.instructions
+            )
+            modelContext.insert(template)
+        }
     }
 
     // MARK: - iPhone Layout (Tab Bar)

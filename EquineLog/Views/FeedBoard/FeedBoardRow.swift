@@ -38,6 +38,11 @@ struct FeedBoardRow: View {
         }
     }
 
+    private var fedTimestamp: Date? {
+        guard let schedule = horse.feedSchedule else { return nil }
+        return currentSlot == "AM" ? schedule.amFedAt : schedule.pmFedAt
+    }
+
     // MARK: - Subviews
 
     private var horseAvatar: some View {
@@ -79,6 +84,12 @@ struct FeedBoardRow: View {
                 if isFed {
                     StatusBadge(text: "Fed", color: .pastureGreen)
                 }
+            }
+
+            if isFed, let fedAt = fedTimestamp {
+                Text("Fed \(fedAt, style: .relative) ago")
+                    .font(.system(.caption2, design: .default, weight: .medium))
+                    .foregroundStyle(Color.pastureGreen.opacity(0.8))
             }
 
             if let schedule = horse.feedSchedule {

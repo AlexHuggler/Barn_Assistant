@@ -69,6 +69,7 @@ struct FeedBoardView: View {
             } message: {
                 Text("This will permanently delete \(viewModel.horseToDelete?.name ?? "this horse") and all associated health records and feed data. This cannot be undone.")
             }
+            .toast(isShowing: $viewModel.showMarkAllFedToast, message: "All \(viewModel.currentSlot.rawValue) feeds marked!", icon: "checkmark.seal.fill", color: .pastureGreen)
             .overlay {
                 if viewModel.allFedCelebration {
                     allFedBanner

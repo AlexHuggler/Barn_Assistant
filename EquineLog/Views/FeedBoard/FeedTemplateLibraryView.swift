@@ -197,6 +197,27 @@ struct CreateFeedTemplateView: View {
                 }
 
                 Section("PM Feed") {
+                    if !amGrain.isEmpty || !amHay.isEmpty || !amSupplementsText.isEmpty || !amMedicationsText.isEmpty {
+                        Button {
+                            pmGrain = amGrain
+                            pmHay = amHay
+                            pmSupplementsText = amSupplementsText
+                            pmMedicationsText = amMedicationsText
+                            HapticManager.selection()
+                        } label: {
+                            HStack {
+                                Image(systemName: "doc.on.doc")
+                                    .foregroundStyle(Color.hunterGreen)
+                                Text("Copy AM Feed to PM")
+                                    .foregroundStyle(Color.barnText)
+                                Spacer()
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .foregroundStyle(Color.hunterGreen)
+                            }
+                            .font(EquineFont.caption)
+                        }
+                        .accessibilityHint("Copies all AM feed fields into PM feed fields")
+                    }
                     TextField("Grain", text: $pmGrain)
                     TextField("Hay", text: $pmHay)
                     TextField("Supplements (comma-separated)", text: $pmSupplementsText)
