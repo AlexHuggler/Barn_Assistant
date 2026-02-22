@@ -65,7 +65,7 @@ struct HealthEventItem: Identifiable {
     let event: HealthEvent
     let horseName: String
     let horseId: UUID
-    weak var horse: Horse?
+    let horse: Horse?
     var id: UUID { event.id }
 }
 

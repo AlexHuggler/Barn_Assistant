@@ -146,16 +146,8 @@ struct HealthTimelineView: View {
             }
         } label: {
             HStack(spacing: 6) {
-                if let horse, let imageData = horse.imageData, let uiImage = UIImage(data: imageData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 20, height: 20)
-                        .clipShape(Circle())
-                } else if horse != nil {
-                    Image(systemName: "horse.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Color.hunterGreen.opacity(0.5))
+                if let horse {
+                    HorseAvatarView(horse: horse, size: 20)
                 }
                 Text(title)
                     .font(EquineFont.caption)

@@ -5,8 +5,13 @@ import UIKit
 /// Generates PDF reports for horse health and activity summaries.
 struct PDFReportService {
 
+    /// Minimum expected PDF byte count for a valid document.
+    /// A properly rendered single-page PDF should be at least a few KB.
+    private static let minimumValidPDFSize = 1000
+
     /// Generates a 30-day health report for a given horse.
-    static func generateReport(for horse: Horse) -> Data {
+    /// Returns valid PDF data if generation succeeds, or nil if rendering fails.
+    static func generateReport(for horse: Horse) -> Data? {
         let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792) // US Letter
         let margin: CGFloat = 50
         let contentWidth = pageRect.width - margin * 2
@@ -75,6 +80,12 @@ struct PDFReportService {
 
             // Footer
             drawFooter(in: pageRect, margin: margin)
+        }
+
+        // Validate the generated PDF has minimum expected content
+        guard data.count >= minimumValidPDFSize else {
+            assertionFailure("PDFReportService: Generated PDF is unexpectedly small (\(data.count) bytes)")
+            return nil
         }
 
         return data

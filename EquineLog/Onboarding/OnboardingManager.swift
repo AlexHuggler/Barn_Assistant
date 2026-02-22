@@ -3,6 +3,7 @@ import Observation
 
 /// Manages onboarding state and user preferences gathered during setup.
 @Observable
+@MainActor
 final class OnboardingManager {
     // MARK: - Singleton
 

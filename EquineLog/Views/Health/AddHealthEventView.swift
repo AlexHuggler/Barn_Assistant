@@ -119,7 +119,7 @@ struct AddHealthEventView: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            TextField("Cost ($)", value: $cost, format: .currency(code: "USD"))
+                            TextField("Cost", value: $cost, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
                                 .keyboardType(.decimalPad)
                                 .onChange(of: cost) { _, newValue in
                                     if !costFieldTouched && newValue != nil {

@@ -30,6 +30,11 @@ final class PreviewContainer {
         // Insert sample data
         let horse = PreviewContainer.sampleHorse()
         container.mainContext.insert(horse)
+
+        // Insert sample feed templates
+        for template in PreviewContainer.sampleTemplates() {
+            container.mainContext.insert(template)
+        }
     }
 
     static func sampleHorse() -> Horse {
@@ -125,5 +130,46 @@ final class PreviewContainer {
         )
 
         return horse
+    }
+
+    static func sampleTemplates() -> [FeedTemplate] {
+        let seniorTemplate = FeedTemplate(
+            name: "Senior Horse",
+            description: "Standard senior horse feed program",
+            amGrain: "2 qt SafeChoice Senior",
+            amHay: "2 flakes Timothy",
+            amSupplements: ["Joint supplement", "Vitamin E"],
+            pmGrain: "1.5 qt SafeChoice Senior",
+            pmHay: "2 flakes Timothy",
+            specialInstructions: "Soak grain if needed for dental issues"
+        )
+        seniorTemplate.usageCount = 5
+
+        let easyKeeperTemplate = FeedTemplate(
+            name: "Easy Keeper",
+            description: "Low calorie program for easy keepers",
+            amGrain: "1 qt ration balancer",
+            amHay: "1 flake grass hay",
+            amSupplements: ["Mineral supplement"],
+            pmGrain: "1 qt ration balancer",
+            pmHay: "1 flake grass hay",
+            specialInstructions: "Use slow feeder. Monitor weight weekly."
+        )
+        easyKeeperTemplate.usageCount = 3
+
+        let performanceTemplate = FeedTemplate(
+            name: "Performance Horse",
+            description: "High energy for horses in work",
+            amGrain: "4 qt Strategy",
+            amHay: "3 flakes Alfalfa/Timothy",
+            amSupplements: ["Electrolytes", "Omega 3"],
+            pmGrain: "4 qt Strategy",
+            pmHay: "3 flakes Alfalfa/Timothy",
+            pmSupplements: ["Electrolytes"],
+            specialInstructions: "Adjust based on workload"
+        )
+        performanceTemplate.usageCount = 2
+
+        return [seniorTemplate, easyKeeperTemplate, performanceTemplate]
     }
 }

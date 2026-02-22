@@ -41,27 +41,14 @@ struct FeedBoardRow: View {
     // MARK: - Subviews
 
     private var horseAvatar: some View {
-        Group {
-            if let imageData = horse.imageData,
-               let uiImage = UIImage(data: imageData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image(systemName: "horse.circle.fill")
-                    .resizable()
-                    .foregroundStyle(Color.hunterGreen.opacity(0.3))
+        HorseAvatarView(horse: horse, size: 50)
+            .overlay {
+                if isFed {
+                    Circle()
+                        .stroke(Color.pastureGreen, lineWidth: 2)
+                }
             }
-        }
-        .frame(width: 50, height: 50)
-        .clipShape(Circle())
-        .overlay {
-            if isFed {
-                Circle()
-                    .stroke(Color.pastureGreen, lineWidth: 2)
-            }
-        }
-        .accessibilityHidden(true)
+            .accessibilityHidden(true)
     }
 
     private var feedContent: some View {
