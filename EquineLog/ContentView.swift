@@ -9,23 +9,52 @@ struct ContentView: View {
     @AppStorage("hasSeededDefaultTemplates") private var hasSeededDefaultTemplates = false
 
     var body: some View {
-        Group {
-            if !onboardingManager.hasCompletedOnboarding {
-                OnboardingView(manager: onboardingManager)
-            } else if horizontalSizeClass == .regular {
-                // iPad: Sidebar navigation
-                iPadLayout
-            } else {
-                // iPhone: Tab bar navigation
-                iPhoneLayout
+        ZStack {
+            Group {
+                if !onboardingManager.hasCompletedOnboarding {
+                    OnboardingView(manager: onboardingManager)
+                } else if horizontalSizeClass == .regular {
+                    iPadLayout
+                } else {
+                    iPhoneLayout
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: onboardingManager.hasCompletedOnboarding)
+
+            // Guided tour overlay — sits above the main app
+            if onboardingManager.hasCompletedOnboarding && onboardingManager.guidedTourStep != nil {
+                GuidedTourOverlay(manager: onboardingManager) { tabName in
+                    if let tab = AppTab(rawValue: tabName) {
+                        withAnimation {
+                            selectedTab = tab
+                        }
+                    }
+                }
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: onboardingManager.hasCompletedOnboarding)
         .onChange(of: onboardingManager.hasCompletedOnboarding) { _, completed in
-            if completed { seedDefaultTemplatesIfNeeded() }
+            if completed {
+                seedDefaultTemplatesIfNeeded()
+                // Start guided tour after a brief delay so the main UI renders first
+                if onboardingManager.shouldShowGuidedTour {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        withAnimation {
+                            onboardingManager.startGuidedTour()
+                        }
+                    }
+                }
+            }
         }
         .onAppear {
             seedDefaultTemplatesIfNeeded()
+            // Resume guided tour if the user left mid-tour (app restart)
+            if onboardingManager.shouldShowGuidedTour && onboardingManager.guidedTourStep == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    withAnimation {
+                        onboardingManager.startGuidedTour()
+                    }
+                }
+            }
         }
     }
 
