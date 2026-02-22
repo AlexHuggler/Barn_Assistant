@@ -117,6 +117,28 @@ struct SettingsView: View {
                 }
             }
 
+            Button {
+                onboardingManager.hasCompletedGuidedTour = false
+                onboardingManager.startGuidedTour()
+            } label: {
+                HStack {
+                    Image(systemName: "hand.wave.fill")
+                        .foregroundStyle(Color.saddleBrown)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Replay Guided Tour")
+                            .font(EquineFont.headline)
+                            .foregroundStyle(Color.barnText)
+                        Text("Step-by-step walkthrough of key features")
+                            .font(EquineFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
             NavigationLink {
                 QuickTipsView()
             } label: {
@@ -168,7 +190,12 @@ struct OnboardingReplayView: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var manager: OnboardingManager
 
-    @State private var currentStep: OnboardingStep = .welcome
+    enum ReplayPage: Int, CaseIterable, Identifiable {
+        case welcome = 0, feedBoard, healthTimeline, templates, weather
+        var id: Int { rawValue }
+    }
+
+    @State private var currentPage: ReplayPage = .welcome
 
     var body: some View {
         ZStack {
@@ -195,42 +222,42 @@ struct OnboardingReplayView: View {
 
                 // Progress indicator
                 HStack(spacing: 8) {
-                    ForEach(OnboardingStep.allCases) { step in
+                    ForEach(ReplayPage.allCases) { page in
                         Capsule()
-                            .fill(step.rawValue <= currentStep.rawValue ? Color.hunterGreen : Color.hunterGreen.opacity(0.2))
+                            .fill(page.rawValue <= currentPage.rawValue ? Color.hunterGreen : Color.hunterGreen.opacity(0.2))
                             .frame(height: 4)
                     }
                 }
                 .padding(.horizontal, 32)
 
                 // Content - reuse feature highlights
-                TabView(selection: $currentStep) {
+                TabView(selection: $currentPage) {
                     replayWelcome
-                        .tag(OnboardingStep.welcome)
+                        .tag(ReplayPage.welcome)
 
                     replayFeedBoard
-                        .tag(OnboardingStep.barnSetup)
+                        .tag(ReplayPage.feedBoard)
 
                     replayHealthTimeline
-                        .tag(OnboardingStep.useCase)
+                        .tag(ReplayPage.healthTimeline)
 
                     replayTemplates
-                        .tag(OnboardingStep.features)
+                        .tag(ReplayPage.templates)
 
                     replayWeather
-                        .tag(OnboardingStep.quickStart)
+                        .tag(ReplayPage.weather)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
                 // Navigation dots
                 HStack(spacing: 8) {
-                    ForEach(OnboardingStep.allCases) { step in
+                    ForEach(ReplayPage.allCases) { page in
                         Circle()
-                            .fill(step == currentStep ? Color.hunterGreen : Color.hunterGreen.opacity(0.3))
+                            .fill(page == currentPage ? Color.hunterGreen : Color.hunterGreen.opacity(0.3))
                             .frame(width: 8, height: 8)
                             .onTapGesture {
                                 withAnimation {
-                                    currentStep = step
+                                    currentPage = page
                                 }
                             }
                     }

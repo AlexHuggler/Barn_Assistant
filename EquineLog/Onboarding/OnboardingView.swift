@@ -8,6 +8,7 @@ struct OnboardingView: View {
     @State private var barnName = ""
     @State private var selectedHorseCount: HorseCountRange = .oneToThree
     @State private var selectedUseCase: PrimaryUseCase = .personalHorses
+    @State private var selectedExperience: ExperienceLevel = .newToApps
 
     // Quick-add horse state
     @State private var horseName = ""
@@ -40,6 +41,9 @@ struct OnboardingView: View {
 
                     useCaseStep
                         .tag(OnboardingStep.useCase)
+
+                    experienceLevelStep
+                        .tag(OnboardingStep.experienceLevel)
 
                     featureHighlightsStep
                         .tag(OnboardingStep.features)
@@ -212,8 +216,75 @@ struct OnboardingView: View {
         .padding(.horizontal, 24)
     }
 
-    private var featureHighlightsStep: some View {
+    private var experienceLevelStep: some View {
         VStack(spacing: 24) {
+            Spacer()
+
+            VStack(spacing: 12) {
+                Image(systemName: "graduationcap.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(Color.hunterGreen)
+
+                Text("How should we get you started?")
+                    .font(EquineFont.title)
+                    .foregroundStyle(Color.barnText)
+
+                Text("Choose your pace — you can always replay the tour later")
+                    .font(EquineFont.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 12) {
+                ForEach(ExperienceLevel.allCases) { level in
+                    Button {
+                        selectedExperience = level
+                        HapticManager.selection()
+                    } label: {
+                        HStack(spacing: 16) {
+                            Image(systemName: level.icon)
+                                .font(.title2)
+                                .foregroundStyle(selectedExperience == level ? .white : Color.hunterGreen)
+                                .frame(width: 40)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(level.displayName)
+                                    .font(EquineFont.headline)
+                                    .foregroundStyle(selectedExperience == level ? .white : Color.barnText)
+
+                                Text(level.description)
+                                    .font(EquineFont.caption)
+                                    .foregroundStyle(selectedExperience == level ? .white.opacity(0.8) : .secondary)
+                            }
+
+                            Spacer()
+
+                            if selectedExperience == level {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .padding()
+                        .background(selectedExperience == level ? Color.hunterGreen : Color.white.opacity(0.8))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selectedExperience == level ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 8)
+
+            Spacer()
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private var featureHighlightsStep: some View {
+        // Temporarily set the use case so personalizedFeatures reflects the selection
+        let _ = { manager.primaryUseCase = selectedUseCase }()
+
+        return VStack(spacing: 24) {
             Spacer()
 
             VStack(spacing: 12) {
@@ -221,7 +292,7 @@ struct OnboardingView: View {
                     .font(.system(size: 48))
                     .foregroundStyle(Color.hunterGreen)
 
-                Text("Key Features for You")
+                Text("Tailored for You")
                     .font(EquineFont.title)
                     .foregroundStyle(Color.barnText)
 
@@ -232,33 +303,58 @@ struct OnboardingView: View {
 
             ScrollView {
                 VStack(spacing: 16) {
-                    FeatureCard(
-                        icon: "checklist",
-                        title: "Daily Feed Board",
-                        description: "Track AM and PM feedings at a glance. Mark horses fed with a single tap, and see special instructions for each horse.",
-                        color: .hunterGreen
-                    )
+                    ForEach(manager.personalizedFeatures) { feature in
+                        HStack(alignment: .top, spacing: 16) {
+                            ZStack {
+                                Image(systemName: feature.icon)
+                                    .font(.title2)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(feature.color)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-                    FeatureCard(
-                        icon: "heart.text.clipboard",
-                        title: "Health Timeline",
-                        description: "Never miss a vet visit, farrier appointment, or dental check. Get reminders before events are due.",
-                        color: .alertRed
-                    )
+                                if feature.isPrimary {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(Color.saddleBrown)
+                                        .offset(x: 18, y: -18)
+                                }
+                            }
 
-                    FeatureCard(
-                        icon: "doc.on.doc.fill",
-                        title: "Feed Templates",
-                        description: "Save common feed schedules as templates. Apply them instantly when adding new horses.",
-                        color: .saddleBrown
-                    )
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Text(feature.title)
+                                        .font(EquineFont.headline)
+                                        .foregroundStyle(Color.barnText)
+                                    if feature.isPrimary {
+                                        Text("Key")
+                                            .font(.system(.caption2, design: .rounded, weight: .bold))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.saddleBrown)
+                                            .clipShape(Capsule())
+                                    }
+                                }
 
-                    FeatureCard(
-                        icon: "cloud.sun.fill",
-                        title: "Smart Weather",
-                        description: "Get blanket recommendations based on current conditions and whether your horse is clipped.",
-                        color: .blue
-                    )
+                                Text(feature.description)
+                                    .font(EquineFont.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+
+                            Spacer(minLength: 0)
+                        }
+                        .padding()
+                        .background(Color.white.opacity(feature.isPrimary ? 0.95 : 0.7))
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            feature.isPrimary
+                                ? RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(feature.color.opacity(0.3), lineWidth: 1)
+                                : nil
+                        )
+                    }
                 }
                 .padding(.horizontal, 8)
             }
@@ -326,10 +422,12 @@ struct OnboardingView: View {
 
             // Tips
             VStack(alignment: .leading, spacing: 8) {
-                Text("Quick Tips")
-                    .font(EquineFont.caption)
-                    .foregroundStyle(.secondary)
-
+                if selectedExperience != .techSavvy {
+                    Text("What's next")
+                        .font(EquineFont.caption)
+                        .foregroundStyle(.secondary)
+                    TipRow(icon: "hand.wave.fill", text: "We'll give you a quick guided tour")
+                }
                 TipRow(icon: "hand.tap.fill", text: "Tap a horse to mark as fed")
                 TipRow(icon: "plus.circle.fill", text: "Use the + button to add horses")
                 TipRow(icon: "gearshape.fill", text: "Replay this tutorial in Settings")
@@ -422,6 +520,7 @@ struct OnboardingView: View {
         manager.barnName = barnName
         manager.expectedHorseCount = selectedHorseCount
         manager.primaryUseCase = selectedUseCase
+        manager.experienceLevel = selectedExperience
 
         // Add quick horse if requested
         if wantsToAddHorse && !horseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -432,6 +531,11 @@ struct OnboardingView: View {
                 feedSchedule: schedule
             )
             modelContext.insert(horse)
+        }
+
+        // If "techSavvy", skip the guided tour entirely
+        if selectedExperience == .techSavvy {
+            manager.hasCompletedGuidedTour = true
         }
 
         HapticManager.notification(.success)
@@ -445,8 +549,9 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
     case welcome = 0
     case barnSetup = 1
     case useCase = 2
-    case features = 3
-    case quickStart = 4
+    case experienceLevel = 3
+    case features = 4
+    case quickStart = 5
 
     var id: Int { rawValue }
 
