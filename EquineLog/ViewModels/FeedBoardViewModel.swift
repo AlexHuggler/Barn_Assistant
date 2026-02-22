@@ -93,6 +93,9 @@ final class FeedBoardViewModel {
             HapticManager.notification(.success)
         }
 
+        // Update notification streak tracking
+        NotificationService.shared.updateFeedingStreak(allHorses: allHorses, allFed: allFed && !allHorses.isEmpty)
+
         // Auto-hide undo banner after 4 seconds
         let timer = DispatchWorkItem { [weak self] in
             self?.showUndoBanner = false
@@ -177,6 +180,9 @@ final class FeedBoardViewModel {
         allFedCelebration = true
         showMarkAllFedToast = true
         HapticManager.notification(.success)
+
+        // Update notification streak tracking
+        NotificationService.shared.updateFeedingStreak(allHorses: horses, allFed: true)
     }
 
     /// Resets all fed status for the current slot (useful for undo).

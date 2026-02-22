@@ -6,7 +6,10 @@ struct ContentView: View {
     @State private var onboardingManager = OnboardingManager.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeededDefaultTemplates") private var hasSeededDefaultTemplates = false
+    @Query(sort: \Horse.name) private var allHorses: [Horse]
+    @State private var notificationWeatherService = WeatherService()
 
     var body: some View {
         ZStack {
@@ -35,6 +38,10 @@ struct ContentView: View {
         .onChange(of: onboardingManager.hasCompletedOnboarding) { _, completed in
             if completed {
                 seedDefaultTemplatesIfNeeded()
+                // Request notification permission after onboarding completes
+                Task {
+                    await NotificationService.shared.requestPermission()
+                }
                 // Start guided tour after a brief delay so the main UI renders first
                 if onboardingManager.shouldShowGuidedTour {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
@@ -43,6 +50,14 @@ struct ContentView: View {
                         }
                     }
                 }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && onboardingManager.hasCompletedOnboarding {
+                NotificationService.shared.evaluateAllMoments(
+                    horses: allHorses,
+                    weatherService: notificationWeatherService
+                )
             }
         }
         .onAppear {

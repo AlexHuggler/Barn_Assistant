@@ -7,11 +7,14 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showOnboardingReplay = false
     @State private var onboardingManager = OnboardingManager.shared
+    @State private var notificationPrefs = NotificationPreferences.shared
+    @State private var notificationService = NotificationService.shared
 
     var body: some View {
         NavigationStack {
             List {
                 subscriptionSection
+                notificationSection
                 barnInfoSection
                 helpSection
                 aboutSection
@@ -63,6 +66,114 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Notifications
+
+    private var notificationSection: some View {
+        Section("Notifications") {
+            // Master toggle
+            Toggle(isOn: Binding(
+                get: { notificationPrefs.notificationsEnabled },
+                set: { newValue in
+                    notificationPrefs.notificationsEnabled = newValue
+                    if newValue {
+                        Task {
+                            await notificationService.requestPermission()
+                        }
+                    }
+                }
+            )) {
+                HStack {
+                    Image(systemName: "bell.fill")
+                        .foregroundStyle(Color.hunterGreen)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable Notifications")
+                            .font(EquineFont.headline)
+                        Text("High-value alerts about your horses")
+                            .font(EquineFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .tint(.hunterGreen)
+
+            if notificationPrefs.notificationsEnabled {
+                // Per-moment toggles
+                notificationToggle(
+                    type: .overdueCascade,
+                    isOn: Binding(
+                        get: { notificationPrefs.overdueAlertsEnabled },
+                        set: { notificationPrefs.overdueAlertsEnabled = $0 }
+                    )
+                )
+
+                notificationToggle(
+                    type: .coldSnapBlanket,
+                    isOn: Binding(
+                        get: { notificationPrefs.weatherAlertsEnabled },
+                        set: { notificationPrefs.weatherAlertsEnabled = $0 }
+                    )
+                )
+
+                notificationToggle(
+                    type: .unfedAlert,
+                    isOn: Binding(
+                        get: { notificationPrefs.feedingAlertsEnabled },
+                        set: { notificationPrefs.feedingAlertsEnabled = $0 }
+                    )
+                )
+
+                notificationToggle(
+                    type: .upcomingMaintenance,
+                    isOn: Binding(
+                        get: { notificationPrefs.upcomingRemindersEnabled },
+                        set: { notificationPrefs.upcomingRemindersEnabled = $0 }
+                    )
+                )
+
+                // Permission denied warning
+                if notificationService.permissionStatus == .denied {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Color.alertRed)
+                        Text("Notifications are disabled in System Settings. Open Settings to enable them.")
+                            .font(EquineFont.caption)
+                            .foregroundStyle(Color.alertRed)
+                    }
+                }
+
+                // Daily cap info
+                HStack {
+                    Text("Daily limit")
+                    Spacer()
+                    Text("\(NotificationPreferences.maxNotificationsPerDay) per day")
+                        .foregroundStyle(.secondary)
+                }
+                .font(EquineFont.caption)
+            }
+        }
+        .task {
+            await notificationService.updatePermissionStatus()
+        }
+    }
+
+    private func notificationToggle(type: HighValueMomentType, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            HStack {
+                Image(systemName: type.iconName)
+                    .foregroundStyle(Color.saddleBrown)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(type.displayName)
+                        .font(EquineFont.headline)
+                    Text(type.description)
+                        .font(EquineFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .tint(.hunterGreen)
     }
 
     // MARK: - Barn Info

@@ -3,6 +3,8 @@ import SwiftData
 
 @main
 struct EquineLogApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+
     let container: ModelContainer
 
     init() {
@@ -21,6 +23,8 @@ struct EquineLogApp: App {
                 - Error type: \(type(of: error))
                 """)
         }
+
+        NotificationScheduler.registerBackgroundTask()
     }
 
     var body: some Scene {
@@ -28,5 +32,10 @@ struct EquineLogApp: App {
             ContentView()
         }
         .modelContainer(container)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                NotificationScheduler.scheduleBackgroundRefresh()
+            }
+        }
     }
 }
