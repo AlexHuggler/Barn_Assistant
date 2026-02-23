@@ -270,6 +270,14 @@ struct AddHealthEventView: View {
                 providerName: providerName.isEmpty ? nil : providerName
             )
             horse.healthEvents.append(event)
+
+            // Schedule a reminder notification 3 days before the next due date
+            if nextDue != nil {
+                NotificationService.shared.scheduleUpcomingReminder(
+                    for: event,
+                    horseName: horse.name
+                )
+            }
         }
 
         HapticManager.notification(.success)
