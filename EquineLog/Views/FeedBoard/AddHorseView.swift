@@ -328,7 +328,7 @@ struct AddHorseView: View {
     private func attemptSave() {
         hasAttemptedSave = true
         guard isFormValid else {
-            HapticManager.notification(.error)
+            HapticManager.warningSequence()
             return
         }
         commitHorse()
@@ -358,7 +358,7 @@ struct AddHorseView: View {
         )
 
         modelContext.insert(horse)
-        HapticManager.notification(.success)
+        HapticManager.successSequence()
 
         // Show toast briefly before dismissing
         withAnimation {
@@ -414,7 +414,7 @@ struct AddHorseView: View {
                         imageData = data
                     } else {
                         photoLoadingError = "Unable to load image. Please try a different photo."
-                        HapticManager.notification(.error)
+                        HapticManager.warningSequence()
                     }
                     isLoadingPhoto = false
                 }
@@ -422,7 +422,7 @@ struct AddHorseView: View {
                 await MainActor.run {
                     photoLoadingError = "Photo loading failed: \(error.localizedDescription)"
                     isLoadingPhoto = false
-                    HapticManager.notification(.error)
+                    HapticManager.warningSequence()
                 }
             }
         }

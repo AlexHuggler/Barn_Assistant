@@ -85,6 +85,22 @@ enum HapticManager {
     static func selection() {
         selectionGenerator.selectionChanged()
     }
+
+    static func successSequence() {
+        impact(.light)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { impact(.medium) }
+    }
+
+    static func celebrationSequence() {
+        impact(.light)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { impact(.medium) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { notification(.success) }
+    }
+
+    static func warningSequence() {
+        notification(.error)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { notification(.error) }
+    }
 }
 
 // MARK: - Form Validation
