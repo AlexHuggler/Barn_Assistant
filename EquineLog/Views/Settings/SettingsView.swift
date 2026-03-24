@@ -4,6 +4,10 @@ import SwiftData
 struct SettingsView: View {
     @Query private var horses: [Horse]
     @AppStorage("barnModeUnlocked") private var barnModeUnlocked = false
+    @AppStorage("blanketThresholdNoBlanket") private var noBlanketThreshold: Double = 60
+    @AppStorage("blanketThresholdLightSheet") private var lightSheetThreshold: Double = 50
+    @AppStorage("blanketThresholdMediumWeight") private var mediumWeightThreshold: Double = 40
+    @AppStorage("blanketThresholdHeavyWeight") private var heavyWeightThreshold: Double = 30
     @State private var showPaywall = false
     @State private var showOnboardingReplay = false
     @State private var onboardingManager = OnboardingManager.shared
@@ -15,6 +19,7 @@ struct SettingsView: View {
             List {
                 subscriptionSection
                 notificationSection
+                blanketThresholdsSection
                 barnInfoSection
                 helpSection
                 aboutSection
@@ -174,6 +179,21 @@ struct SettingsView: View {
             }
         }
         .tint(.hunterGreen)
+    }
+
+    // MARK: - Blanket Thresholds
+
+    private var blanketThresholdsSection: some View {
+        Section {
+            ThresholdRow(label: "No Blanket Above", value: $noBlanketThreshold, color: .pastureGreen)
+            ThresholdRow(label: "Light Sheet Below", value: $lightSheetThreshold, color: .hunterGreen)
+            ThresholdRow(label: "Medium Weight Below", value: $mediumWeightThreshold, color: .saddleBrown)
+            ThresholdRow(label: "Heavy Weight Below", value: $heavyWeightThreshold, color: .alertRed)
+        } header: {
+            Text("Blanket Thresholds")
+        } footer: {
+            Text("Customize temperature boundaries for blanket recommendations. Defaults: 60°F / 50°F / 40°F / 30°F")
+        }
     }
 
     // MARK: - Barn Info
@@ -505,7 +525,7 @@ struct FeatureTutorialCard: View {
                     }
                 }
                 .padding()
-                .background(Color.white.opacity(0.8))
+                .background(Color.parchment.opacity(0.8))
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                 Spacer(minLength: 60)
@@ -623,6 +643,31 @@ struct FeedResetView: View {
     private func resetAllFeeds() {
         for horse in horses {
             horse.feedSchedule?.resetDailyStatus()
+        }
+    }
+}
+
+// MARK: - Threshold Row
+
+private struct ThresholdRow: View {
+    let label: String
+    @Binding var value: Double
+    let color: Color
+
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(color)
+                .frame(width: 10, height: 10)
+            Text(label)
+                .font(EquineFont.body)
+            Spacer()
+            Text("\(Int(value))°F")
+                .font(EquineFont.body)
+                .foregroundStyle(.secondary)
+                .frame(width: 50, alignment: .trailing)
+            Stepper("", value: $value, in: 10...80, step: 5)
+                .labelsHidden()
         }
     }
 }

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct FeedBoardView: View {
-    @Query(sort: \Horse.name) private var horses: [Horse]
+    @Query(sort: \Horse.sortOrder) private var horses: [Horse]
     @Environment(\.modelContext) private var modelContext
     @AppStorage("barnModeUnlocked") private var barnModeUnlocked = false
     @State private var viewModel = FeedBoardViewModel()
@@ -20,7 +20,25 @@ struct FeedBoardView: View {
             .navigationTitle("Feed Board")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    slotIndicator
+                    HStack(spacing: 8) {
+                        slotIndicator
+                        Menu {
+                            ForEach(FeedBoardViewModel.SortMode.allCases, id: \.self) { mode in
+                                Button {
+                                    viewModel.sortMode = mode
+                                } label: {
+                                    HStack {
+                                        Text(mode.rawValue)
+                                        if viewModel.sortMode == mode {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                        }
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -84,6 +102,7 @@ struct FeedBoardView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.showUndoBanner)
             .onAppear {
                 viewModel.autoResetIfNewDay(horses: horses)
+                viewModel.initializeSortOrder(for: horses)
             }
         }
     }
@@ -113,7 +132,7 @@ struct FeedBoardView: View {
                     .foregroundStyle(Color.hunterGreen)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.white)
+                    .background(Color.parchment)
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -192,6 +211,10 @@ struct FeedBoardView: View {
                         }
                         .tint(Color.hunterGreen)
                     }
+                }
+                .onMove { source, destination in
+                    var mutableHorses = filtered
+                    viewModel.reorderHorses(&mutableHorses, from: source, to: destination)
                 }
             } header: {
                 feedProgressHeader

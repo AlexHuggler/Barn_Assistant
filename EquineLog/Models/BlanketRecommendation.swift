@@ -1,5 +1,23 @@
 import Foundation
 
+struct BlanketThresholds {
+    let noBlanket: Double
+    let lightSheet: Double
+    let mediumWeight: Double
+    let heavyWeight: Double
+
+    static let `default` = BlanketThresholds(noBlanket: 60, lightSheet: 50, mediumWeight: 40, heavyWeight: 30)
+
+    static func fromUserDefaults() -> BlanketThresholds {
+        BlanketThresholds(
+            noBlanket: UserDefaults.standard.object(forKey: "blanketThresholdNoBlanket") as? Double ?? 60,
+            lightSheet: UserDefaults.standard.object(forKey: "blanketThresholdLightSheet") as? Double ?? 50,
+            mediumWeight: UserDefaults.standard.object(forKey: "blanketThresholdMediumWeight") as? Double ?? 40,
+            heavyWeight: UserDefaults.standard.object(forKey: "blanketThresholdHeavyWeight") as? Double ?? 30
+        )
+    }
+}
+
 /// Blanket recommendation engine based on temperature and clipping status.
 struct BlanketRecommendation {
 
@@ -13,33 +31,33 @@ struct BlanketRecommendation {
     }
 
     /// Returns the recommended blanket given temperature in Fahrenheit and clip status.
-    static func recommend(temperatureF: Double, isClipped: Bool) -> BlanketType {
+    static func recommend(temperatureF: Double, isClipped: Bool, thresholds: BlanketThresholds = .default) -> BlanketType {
         switch (temperatureF, isClipped) {
-        // > 60°F
-        case (let t, false) where t > 60:
+        // > noBlanket threshold
+        case (let t, false) where t > thresholds.noBlanket:
             return .none
-        case (let t, true) where t > 60:
+        case (let t, true) where t > thresholds.noBlanket:
             return .noneOrLight
 
-        // 50°F - 60°F
-        case (let t, false) where t >= 50:
+        // lightSheet - noBlanket range
+        case (let t, false) where t >= thresholds.lightSheet:
             return .none
-        case (let t, true) where t >= 50:
+        case (let t, true) where t >= thresholds.lightSheet:
             return .lightSheet
 
-        // 40°F - 50°F
-        case (let t, false) where t >= 40:
+        // mediumWeight - lightSheet range
+        case (let t, false) where t >= thresholds.mediumWeight:
             return .lightSheet
-        case (let t, true) where t >= 40:
+        case (let t, true) where t >= thresholds.mediumWeight:
             return .mediumWeight
 
-        // 30°F - 40°F
-        case (let t, false) where t >= 30:
+        // heavyWeight - mediumWeight range
+        case (let t, false) where t >= thresholds.heavyWeight:
             return .mediumWeight
-        case (let t, true) where t >= 30:
+        case (let t, true) where t >= thresholds.heavyWeight:
             return .heavyWeight
 
-        // < 30°F
+        // < heavyWeight threshold
         case (_, false):
             return .heavyWeight
         case (_, true):

@@ -13,6 +13,16 @@ enum SchemaV1: VersionedSchema {
     }
 }
 
+// MARK: - Schema Version 2 (Sort Order)
+
+/// Version 2 schema - Adds sortOrder to Horse for drag-to-reorder on Feed Board
+enum SchemaV2: VersionedSchema {
+    static var versionIdentifier = Schema.Version(2, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [Horse.self, HealthEvent.self, FeedSchedule.self, FeedTemplate.self]
+    }
+}
+
 // MARK: - Migration Plan
 
 /// Migration plan for EquineLog data models.
@@ -45,14 +55,13 @@ enum SchemaV1: VersionedSchema {
 /// ```
 enum EquineLogMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self]
+        [SchemaV1.self, SchemaV2.self]
     }
 
     static var stages: [MigrationStage] {
-        // No migrations yet - V1 is the initial version
-        // Future migrations will be added here as:
-        // .migrate(from: SchemaV1.self, to: SchemaV2.self) { context in ... }
-        []
+        [
+            .lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self)
+        ]
     }
 }
 
@@ -65,7 +74,7 @@ enum ModelContainerFactory {
     /// - Returns: Configured ModelContainer for production use
     /// - Throws: ModelContainerError if initialization fails
     static func createProductionContainer() throws -> ModelContainer {
-        let schema = Schema(versionedSchema: SchemaV1.self)
+        let schema = Schema(versionedSchema: SchemaV2.self)
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
@@ -83,7 +92,7 @@ enum ModelContainerFactory {
     /// - Returns: Configured ModelContainer for testing
     /// - Throws: ModelContainerError if initialization fails
     static func createPreviewContainer() throws -> ModelContainer {
-        let schema = Schema(versionedSchema: SchemaV1.self)
+        let schema = Schema(versionedSchema: SchemaV2.self)
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: true,

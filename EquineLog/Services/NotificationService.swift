@@ -128,7 +128,8 @@ final class NotificationService {
         guard !horses.isEmpty else { return }
 
         let lastTemp = preferences.lastNotifiedTemperatureF
-        let thresholds: [Double] = [60, 50, 40, 30]
+        let blanketThresholds = BlanketThresholds.fromUserDefaults()
+        let thresholds: [Double] = [blanketThresholds.noBlanket, blanketThresholds.lightSheet, blanketThresholds.mediumWeight, blanketThresholds.heavyWeight]
 
         // Check if temperature crossed a blanket-recommendation threshold
         let crossedThreshold: Bool
@@ -158,7 +159,7 @@ final class NotificationService {
         if horses.contains(where: \.isClipped) {
             bonuses.append(ScoreBonus(reason: "clipped horse", points: 10))
         }
-        if temperature < 30 {
+        if temperature < blanketThresholds.heavyWeight {
             bonuses.append(ScoreBonus(reason: "extreme cold", points: 10))
         }
 
@@ -173,7 +174,8 @@ final class NotificationService {
         let hasClipped = !clippedHorses.isEmpty
         let recommendation = BlanketRecommendation.recommend(
             temperatureF: temperature,
-            isClipped: hasClipped
+            isClipped: hasClipped,
+            thresholds: blanketThresholds
         )
 
         let title = "Temperature at \(Int(temperature))°F — blanket check"
