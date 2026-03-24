@@ -42,6 +42,22 @@ struct AddHorseView: View {
     @State private var isSaving = false
     @State private var showSuccessToast = false
 
+    // Keyboard navigation
+    enum Field: Hashable {
+        case name, ownerName
+        case amGrain, amHay, amSupplements, amMedications
+        case pmGrain, pmHay, pmSupplements, pmMedications
+        case specialInstructions
+    }
+    @FocusState private var focusedField: Field?
+
+    private static let fieldOrder: [Field] = [
+        .name, .ownerName,
+        .amGrain, .amHay, .amSupplements, .amMedications,
+        .pmGrain, .pmHay, .pmSupplements, .pmMedications,
+        .specialInstructions
+    ]
+
     var body: some View {
         NavigationStack {
             Form {
@@ -52,6 +68,7 @@ struct AddHorseView: View {
                 pmFeedSection
                 instructionsSection
             }
+            .keyboardNav(focusedField: $focusedField, fields: Self.fieldOrder)
             .navigationTitle("Add Horse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -103,6 +120,14 @@ struct AddHorseView: View {
         nameValidation.isValid && ownerValidation.isValid
     }
 
+    private var suggestedAmGrain: String? {
+        SmartDefaults.mostCommon(existingHorses.compactMap(\.feedSchedule?.amGrain))
+    }
+
+    private var suggestedAmHay: String? {
+        SmartDefaults.mostCommon(existingHorses.compactMap(\.feedSchedule?.amHay))
+    }
+
     // MARK: - Form Sections
 
     private var horseDetailsSection: some View {
@@ -112,6 +137,7 @@ struct AddHorseView: View {
                     TextField("Name", text: $name)
                         .font(EquineFont.body)
                         .autocorrectionDisabled()
+                        .focused($focusedField, equals: .name)
                         .onChange(of: name) { _, _ in
                             if !nameFieldTouched && !name.isEmpty {
                                 nameFieldTouched = true
@@ -130,6 +156,7 @@ struct AddHorseView: View {
                 HStack {
                     TextField("Owner Name", text: $ownerName)
                         .font(EquineFont.body)
+                        .focused($focusedField, equals: .ownerName)
                         .onChange(of: ownerName) { _, _ in
                             if !ownerFieldTouched && !ownerName.isEmpty {
                                 ownerFieldTouched = true
@@ -239,10 +266,12 @@ struct AddHorseView: View {
 
     private var amFeedSection: some View {
         Section("AM Feed") {
-            TextField("Grain (e.g., 2 qt SafeChoice)", text: $amGrain)
-            TextField("Hay (e.g., 2 flakes Timothy)", text: $amHay)
-            ChipInputView(label: "Add supplement…", chips: $amSupplements)
-            ChipInputView(label: "Add medication…", chips: $amMedications)
+            TextField("Grain", text: $amGrain, prompt: Text(suggestedAmGrain ?? "e.g., 2 qt SafeChoice").foregroundStyle(.tertiary))
+                .focused($focusedField, equals: .amGrain)
+            TextField("Hay", text: $amHay, prompt: Text(suggestedAmHay ?? "e.g., 2 flakes Timothy").foregroundStyle(.tertiary))
+                .focused($focusedField, equals: .amHay)
+            ChipInputView(label: "Add supplement…", chips: $amSupplements, isFocused: focusedField == .amSupplements, onCommitFocus: { focusedField = .amMedications })
+            ChipInputView(label: "Add medication…", chips: $amMedications, isFocused: focusedField == .amMedications, onCommitFocus: { focusedField = .pmGrain })
         }
     }
 
@@ -267,9 +296,11 @@ struct AddHorseView: View {
                 .accessibilityHint("Copies all AM feed fields into PM feed fields")
             }
             TextField("Grain", text: $pmGrain)
+                .focused($focusedField, equals: .pmGrain)
             TextField("Hay", text: $pmHay)
-            ChipInputView(label: "Add supplement…", chips: $pmSupplements)
-            ChipInputView(label: "Add medication…", chips: $pmMedications)
+                .focused($focusedField, equals: .pmHay)
+            ChipInputView(label: "Add supplement…", chips: $pmSupplements, isFocused: focusedField == .pmSupplements, onCommitFocus: { focusedField = .pmMedications })
+            ChipInputView(label: "Add medication…", chips: $pmMedications, isFocused: focusedField == .pmMedications, onCommitFocus: { focusedField = .specialInstructions })
         }
     }
 
@@ -288,6 +319,7 @@ struct AddHorseView: View {
         Section("Special Instructions") {
             TextField("e.g., Soaked hay only, muzzle on turnout", text: $specialInstructions, axis: .vertical)
                 .lineLimit(2...4)
+                .focused($focusedField, equals: .specialInstructions)
         }
     }
 

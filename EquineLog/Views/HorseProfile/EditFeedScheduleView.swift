@@ -21,6 +21,20 @@ struct EditFeedScheduleView: View {
     @State private var templateDescription = ""
     @State private var showTemplateToast = false
 
+    // Keyboard navigation
+    enum Field: Hashable {
+        case amGrain, amHay, amSupplements, amMedications
+        case pmGrain, pmHay, pmSupplements, pmMedications
+        case specialInstructions
+    }
+    @FocusState private var focusedField: Field?
+
+    private static let fieldOrder: [Field] = [
+        .amGrain, .amHay, .amSupplements, .amMedications,
+        .pmGrain, .pmHay, .pmSupplements, .pmMedications,
+        .specialInstructions
+    ]
+
     init(horse: Horse) {
         self.horse = horse
         let schedule = horse.feedSchedule
@@ -40,9 +54,11 @@ struct EditFeedScheduleView: View {
             Form {
                 Section("AM Feed") {
                     TextField("Grain (e.g., 2 qt SafeChoice)", text: $amGrain)
+                        .focused($focusedField, equals: .amGrain)
                     TextField("Hay (e.g., 2 flakes Timothy)", text: $amHay)
-                    ChipInputView(label: "Add supplement…", chips: $amSupplements)
-                    ChipInputView(label: "Add medication…", chips: $amMedications)
+                        .focused($focusedField, equals: .amHay)
+                    ChipInputView(label: "Add supplement…", chips: $amSupplements, isFocused: focusedField == .amSupplements, onCommitFocus: { focusedField = .amMedications })
+                    ChipInputView(label: "Add medication…", chips: $amMedications, isFocused: focusedField == .amMedications, onCommitFocus: { focusedField = .pmGrain })
                 }
 
                 Section("PM Feed") {
@@ -65,14 +81,17 @@ struct EditFeedScheduleView: View {
                         .accessibilityHint("Copies all AM feed fields into PM feed fields")
                     }
                     TextField("Grain", text: $pmGrain)
+                        .focused($focusedField, equals: .pmGrain)
                     TextField("Hay", text: $pmHay)
-                    ChipInputView(label: "Add supplement…", chips: $pmSupplements)
-                    ChipInputView(label: "Add medication…", chips: $pmMedications)
+                        .focused($focusedField, equals: .pmHay)
+                    ChipInputView(label: "Add supplement…", chips: $pmSupplements, isFocused: focusedField == .pmSupplements, onCommitFocus: { focusedField = .pmMedications })
+                    ChipInputView(label: "Add medication…", chips: $pmMedications, isFocused: focusedField == .pmMedications, onCommitFocus: { focusedField = .specialInstructions })
                 }
 
                 Section("Special Instructions") {
                     TextField("Notes for barn staff...", text: $specialInstructions, axis: .vertical)
                         .lineLimit(2...4)
+                        .focused($focusedField, equals: .specialInstructions)
                 }
 
                 Section {
@@ -94,6 +113,7 @@ struct EditFeedScheduleView: View {
                     Text("Save this feed schedule as a reusable template for future horses.")
                 }
             }
+            .keyboardNav(focusedField: $focusedField, fields: Self.fieldOrder)
             .navigationTitle("Edit Feed Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -20,15 +20,40 @@ struct AddHealthEventView: View {
     @State private var costFieldTouched = false
     @State private var isSaving = false
     @State private var showSuccessToast = false
+    @State private var selectedHorseIDs: Set<UUID> = []
+
+    // Keyboard navigation
+    enum Field: Hashable { case providerName, cost, notes }
+    @FocusState private var focusedField: Field?
 
     private var isEditing: Bool { existingEvent != nil }
+    private var isBatchMode: Bool { !isEditing && horses.count > 1 }
 
-    /// Collect previously used provider names for auto-suggest.
+    /// Collect previously used provider names, sorted by recency for the current event type.
     private var knownProviders: [String] {
-        let all = horses.flatMap(\.healthEvents)
-            .compactMap(\.providerName)
-            .filter { !$0.isEmpty }
-        return Array(Set(all)).sorted()
+        let events = horses.flatMap(\.healthEvents)
+            .filter { !($0.providerName ?? "").isEmpty }
+            .sorted { $0.date > $1.date }
+        // Prioritize providers for the selected event type
+        var seen = Set<String>()
+        var result: [String] = []
+        // First: providers used for this event type (most recent first)
+        for event in events where event.type == eventType {
+            let name = event.providerName!
+            if seen.insert(name).inserted { result.append(name) }
+        }
+        // Then: other providers
+        for event in events {
+            let name = event.providerName!
+            if seen.insert(name).inserted { result.append(name) }
+        }
+        return result
+    }
+
+    private var lastCostText: String? {
+        guard let lastCost = SmartDefaults.lastCost(for: eventType, from: horses) else { return nil }
+        let formatted = lastCost.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
+        return "Last: \(formatted)"
     }
 
     /// Providers that match the current input (or all if empty).
@@ -79,7 +104,58 @@ struct AddHealthEventView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if horses.count > 1 {
+                if isBatchMode {
+                    Section("Select Horses") {
+                        HStack {
+                            Button {
+                                selectedHorseIDs = Set(horses.map(\.id))
+                                HapticManager.selection()
+                            } label: {
+                                Text("Select All")
+                                    .font(EquineFont.caption)
+                                    .foregroundStyle(Color.hunterGreen)
+                            }
+                            .buttonStyle(.plain)
+                            Spacer()
+                            Text("\(selectedHorseIDs.count) of \(horses.count) selected")
+                                .font(EquineFont.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                selectedHorseIDs.removeAll()
+                                HapticManager.selection()
+                            } label: {
+                                Text("Clear")
+                                    .font(EquineFont.caption)
+                                    .foregroundStyle(Color.alertRed)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        ForEach(horses) { horse in
+                            HStack(spacing: 10) {
+                                Image(systemName: selectedHorseIDs.contains(horse.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedHorseIDs.contains(horse.id) ? Color.pastureGreen : Color.fenceLine)
+                                    .font(.title3)
+                                Text(horse.name)
+                                    .font(EquineFont.body)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    if selectedHorseIDs.contains(horse.id) {
+                                        selectedHorseIDs.remove(horse.id)
+                                    } else {
+                                        selectedHorseIDs.insert(horse.id)
+                                    }
+                                }
+                                HapticManager.selection()
+                            }
+                            .accessibilityLabel("\(horse.name), \(selectedHorseIDs.contains(horse.id) ? "selected" : "not selected")")
+                        }
+                    }
+                } else if horses.count > 1 {
                     Section("Horse") {
                         Picker("Select Horse", selection: $selectedHorse) {
                             Text("Choose...").tag(nil as Horse?)
@@ -112,6 +188,7 @@ struct AddHealthEventView: View {
                     // Provider with auto-suggest
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Provider Name", text: $providerName)
+                            .focused($focusedField, equals: .providerName)
                         if !matchingProviders.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
@@ -133,8 +210,9 @@ struct AddHealthEventView: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            TextField("Cost", value: $cost, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                            TextField("Cost", value: $cost, format: .currency(code: Locale.current.currency?.identifier ?? "USD"), prompt: Text(lastCostText ?? "Cost").foregroundStyle(.tertiary))
                                 .keyboardType(.decimalPad)
+                                .focused($focusedField, equals: .cost)
                                 .onChange(of: cost) { _, newValue in
                                     if !costFieldTouched && newValue != nil {
                                         costFieldTouched = true
@@ -153,6 +231,7 @@ struct AddHealthEventView: View {
                 Section("Notes") {
                     TextField("Details or observations...", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
+                        .focused($focusedField, equals: .notes)
                 }
 
                 Section("Next Due Date") {
@@ -191,6 +270,7 @@ struct AddHealthEventView: View {
                     }
                 }
             }
+            .keyboardNav(focusedField: $focusedField, fields: [.providerName, .cost, .notes])
             .navigationTitle(isEditing ? "Edit Health Event" : "Log Health Event")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -209,17 +289,23 @@ struct AddHealthEventView: View {
                             Text("Save")
                         }
                     }
-                    .disabled(selectedHorse == nil || isSaving)
+                    .disabled(isBatchMode ? (selectedHorseIDs.isEmpty || isSaving) : (selectedHorse == nil || isSaving))
                     .fontWeight(.semibold)
                 }
             }
-            .toast(isShowing: $showSuccessToast, message: isEditing ? "Event updated!" : "Event logged!", icon: "checkmark.circle.fill", color: .pastureGreen)
+            .toast(isShowing: $showSuccessToast, message: toastMessage, icon: "checkmark.circle.fill", color: .pastureGreen)
         }
+    }
+
+    private var toastMessage: String {
+        if isBatchMode && !selectedHorseIDs.isEmpty {
+            return "\(selectedHorseIDs.count) events logged!"
+        }
+        return isEditing ? "Event updated!" : "Event logged!"
     }
 
     private func attemptSave() {
         hasAttemptedSave = true
-        guard let horse = selectedHorse else { return }
 
         let costValid = FormValidation.validateCost(cost)
         let datesValid = autoCalculateNextDue
@@ -231,6 +317,12 @@ struct AddHealthEventView: View {
             return
         }
 
+        if isBatchMode {
+            guard !selectedHorseIDs.isEmpty else { return }
+        } else {
+            guard selectedHorse != nil else { return }
+        }
+
         isSaving = true
 
         let nextDue: Date?
@@ -240,7 +332,34 @@ struct AddHealthEventView: View {
             nextDue = customNextDueDate
         }
 
-        if let existingEvent {
+        if isBatchMode {
+            let selectedHorses = horses.filter { selectedHorseIDs.contains($0.id) }
+            for horse in selectedHorses {
+                let event = HealthEvent(
+                    type: eventType,
+                    date: date,
+                    notes: notes,
+                    nextDueDate: nextDue,
+                    cost: cost,
+                    providerName: providerName.isEmpty ? nil : providerName
+                )
+                horse.healthEvents.append(event)
+
+                if nextDue != nil {
+                    NotificationService.shared.scheduleUpcomingReminder(
+                        for: event,
+                        horseName: horse.name
+                    )
+                }
+            }
+            HapticManager.notification(.success)
+            withAnimation {
+                showSuccessToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
+                dismiss()
+            }
+        } else if let existingEvent {
             // Update existing event
             existingEvent.type = eventType
             existingEvent.date = date
@@ -248,8 +367,16 @@ struct AddHealthEventView: View {
             existingEvent.nextDueDate = nextDue
             existingEvent.cost = cost
             existingEvent.providerName = providerName.isEmpty ? nil : providerName
-        } else {
-            // Create new event
+
+            HapticManager.notification(.success)
+            withAnimation {
+                showSuccessToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
+                dismiss()
+            }
+        } else if let horse = selectedHorse {
+            // Create single new event
             let event = HealthEvent(
                 type: eventType,
                 date: date,
@@ -260,23 +387,20 @@ struct AddHealthEventView: View {
             )
             horse.healthEvents.append(event)
 
-            // Schedule a reminder notification 3 days before the next due date
             if nextDue != nil {
                 NotificationService.shared.scheduleUpcomingReminder(
                     for: event,
                     horseName: horse.name
                 )
             }
-        }
 
-        HapticManager.notification(.success)
-
-        withAnimation {
-            showSuccessToast = true
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
-            dismiss()
+            HapticManager.notification(.success)
+            withAnimation {
+                showSuccessToast = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
+                dismiss()
+            }
         }
     }
 }

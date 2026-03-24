@@ -179,8 +179,11 @@ extension View {
 struct ChipInputView: View {
     let label: String
     @Binding var chips: [String]
+    var isFocused: Bool = false
+    var onCommitFocus: (() -> Void)? = nil
 
     @State private var inputText = ""
+    @FocusState private var textFieldFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -214,15 +217,23 @@ struct ChipInputView: View {
 
             TextField(label, text: $inputText)
                 .font(EquineFont.body)
+                .focused($textFieldFocused)
                 .autocorrectionDisabled()
                 .onSubmit {
-                    addChip()
+                    if !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        addChip()
+                    } else {
+                        onCommitFocus?()
+                    }
                 }
                 .onChange(of: inputText) { _, newValue in
                     if newValue.last == "," {
                         inputText = String(newValue.dropLast())
                         addChip()
                     }
+                }
+                .onChange(of: isFocused) { _, newValue in
+                    textFieldFocused = newValue
                 }
         }
         .accessibilityElement(children: .contain)
@@ -359,6 +370,59 @@ enum ViewConstants {
     static let undoBannerDuration: TimeInterval = 4.0
     static let tourStepDelay: TimeInterval = 0.6
     static let celebrationDuration: TimeInterval = 3.0
+}
+
+// MARK: - Keyboard Navigation Toolbar
+
+struct KeyboardNavToolbar<F: Hashable>: ViewModifier {
+    @FocusState.Binding var focusedField: F?
+    let fields: [F]
+
+    private var currentIndex: Int? {
+        guard let focused = focusedField else { return nil }
+        return fields.firstIndex(of: focused)
+    }
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Button {
+                    moveFocus(by: -1)
+                    HapticManager.selection()
+                } label: {
+                    Image(systemName: "chevron.up")
+                }
+                .disabled(currentIndex == nil || currentIndex == 0)
+
+                Button {
+                    moveFocus(by: 1)
+                    HapticManager.selection()
+                } label: {
+                    Image(systemName: "chevron.down")
+                }
+                .disabled(currentIndex == nil || currentIndex == fields.count - 1)
+
+                Spacer()
+
+                Button("Done") {
+                    focusedField = nil
+                }
+            }
+        }
+    }
+
+    private func moveFocus(by offset: Int) {
+        guard let current = currentIndex else { return }
+        let next = current + offset
+        guard next >= 0, next < fields.count else { return }
+        focusedField = fields[next]
+    }
+}
+
+extension View {
+    func keyboardNav<F: Hashable>(focusedField: FocusState<F?>.Binding, fields: [F]) -> some View {
+        modifier(KeyboardNavToolbar(focusedField: focusedField, fields: fields))
+    }
 }
 
 // MARK: - Loading Button Style

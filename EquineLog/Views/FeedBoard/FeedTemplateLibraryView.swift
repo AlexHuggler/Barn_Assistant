@@ -175,6 +175,22 @@ struct CreateFeedTemplateView: View {
     @State private var isSaving = false
     @State private var showSuccessToast = false
 
+    // Keyboard navigation
+    enum Field: Hashable {
+        case name, description
+        case amGrain, amHay, amSupplements, amMedications
+        case pmGrain, pmHay, pmSupplements, pmMedications
+        case specialInstructions
+    }
+    @FocusState private var focusedField: Field?
+
+    private static let fieldOrder: [Field] = [
+        .name, .description,
+        .amGrain, .amHay, .amSupplements, .amMedications,
+        .pmGrain, .pmHay, .pmSupplements, .pmMedications,
+        .specialInstructions
+    ]
+
     private var isFormValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -185,15 +201,19 @@ struct CreateFeedTemplateView: View {
                 Section("Template Info") {
                     TextField("Template Name", text: $name)
                         .font(EquineFont.body)
+                        .focused($focusedField, equals: .name)
                     TextField("Description (optional)", text: $templateDescription)
                         .font(EquineFont.body)
+                        .focused($focusedField, equals: .description)
                 }
 
                 Section("AM Feed") {
                     TextField("Grain (e.g., 2 qt SafeChoice)", text: $amGrain)
+                        .focused($focusedField, equals: .amGrain)
                     TextField("Hay (e.g., 2 flakes Timothy)", text: $amHay)
-                    ChipInputView(label: "Add supplement…", chips: $amSupplements)
-                    ChipInputView(label: "Add medication…", chips: $amMedications)
+                        .focused($focusedField, equals: .amHay)
+                    ChipInputView(label: "Add supplement…", chips: $amSupplements, isFocused: focusedField == .amSupplements, onCommitFocus: { focusedField = .amMedications })
+                    ChipInputView(label: "Add medication…", chips: $amMedications, isFocused: focusedField == .amMedications, onCommitFocus: { focusedField = .pmGrain })
                 }
 
                 Section("PM Feed") {
@@ -219,16 +239,20 @@ struct CreateFeedTemplateView: View {
                         .accessibilityHint("Copies all AM feed fields into PM feed fields")
                     }
                     TextField("Grain", text: $pmGrain)
+                        .focused($focusedField, equals: .pmGrain)
                     TextField("Hay", text: $pmHay)
-                    ChipInputView(label: "Add supplement…", chips: $pmSupplements)
-                    ChipInputView(label: "Add medication…", chips: $pmMedications)
+                        .focused($focusedField, equals: .pmHay)
+                    ChipInputView(label: "Add supplement…", chips: $pmSupplements, isFocused: focusedField == .pmSupplements, onCommitFocus: { focusedField = .pmMedications })
+                    ChipInputView(label: "Add medication…", chips: $pmMedications, isFocused: focusedField == .pmMedications, onCommitFocus: { focusedField = .specialInstructions })
                 }
 
                 Section("Special Instructions") {
                     TextField("Notes for barn staff...", text: $specialInstructions, axis: .vertical)
                         .lineLimit(2...4)
+                        .focused($focusedField, equals: .specialInstructions)
                 }
             }
+            .keyboardNav(focusedField: $focusedField, fields: Self.fieldOrder)
             .navigationTitle("New Template")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

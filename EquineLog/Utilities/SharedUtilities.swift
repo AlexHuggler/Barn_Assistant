@@ -142,3 +142,31 @@ enum FormValidation {
         return .valid
     }
 }
+
+// MARK: - Smart Defaults
+
+enum SmartDefaults {
+    /// Most common non-empty value from a collection of strings.
+    static func mostCommon(_ values: [String]) -> String? {
+        let filtered = values.filter { !$0.isEmpty }
+        guard !filtered.isEmpty else { return nil }
+        let counts = Dictionary(grouping: filtered, by: { $0 }).mapValues(\.count)
+        return counts.max(by: { $0.value < $1.value })?.key
+    }
+
+    /// Most recent provider name for a given event type.
+    static func recentProvider(for type: HealthEventType, from horses: [Horse]) -> String? {
+        horses.flatMap(\.healthEvents)
+            .filter { $0.type == type && !($0.providerName ?? "").isEmpty }
+            .sorted { $0.date > $1.date }
+            .first?.providerName
+    }
+
+    /// Last cost for a given event type.
+    static func lastCost(for type: HealthEventType, from horses: [Horse]) -> Double? {
+        horses.flatMap(\.healthEvents)
+            .filter { $0.type == type && $0.cost != nil }
+            .sorted { $0.date > $1.date }
+            .first?.cost
+    }
+}
