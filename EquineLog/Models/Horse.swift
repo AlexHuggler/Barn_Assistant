@@ -8,6 +8,7 @@ final class Horse {
     var ownerName: String
     @Attribute(.externalStorage) var imageData: Data?
     var isClipped: Bool
+    var sortOrder: Int = 0
     var dateAdded: Date
 
     @Relationship(deleteRule: .cascade, inverse: \HealthEvent.horse)
@@ -43,6 +44,7 @@ final class Horse {
         ownerName: String,
         imageData: Data? = nil,
         isClipped: Bool = false,
+        sortOrder: Int = 0,
         healthEvents: [HealthEvent] = [],
         feedSchedule: FeedSchedule? = nil
     ) {
@@ -51,6 +53,7 @@ final class Horse {
         self.ownerName = ownerName
         self.imageData = imageData
         self.isClipped = isClipped
+        self.sortOrder = sortOrder
         self.dateAdded = .now
         self.healthEvents = healthEvents
         self.feedSchedule = feedSchedule

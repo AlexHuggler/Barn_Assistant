@@ -20,6 +20,12 @@ final class FeedBoardViewModel {
     var lastToggleWasFed: Bool = false
     private var undoTimer: DispatchWorkItem?
 
+    enum SortMode: String, CaseIterable {
+        case manual = "Manual"
+        case alphabetical = "A-Z"
+    }
+    var sortMode: SortMode = .manual
+
     enum FedFilter: String, CaseIterable, Identifiable {
         case all = "All"
         case needsFeeding = "Needs Feeding"
@@ -56,7 +62,14 @@ final class FeedBoardViewModel {
             }
         }
 
-        return result.sorted { $0.name < $1.name }
+        switch sortMode {
+        case .manual:
+            result.sort { $0.sortOrder < $1.sortOrder }
+        case .alphabetical:
+            result.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+
+        return result
     }
 
     func toggleFed(for horse: Horse, allHorses: [Horse]) {
@@ -183,6 +196,24 @@ final class FeedBoardViewModel {
 
         // Update notification streak tracking
         NotificationService.shared.updateFeedingStreak(allHorses: horses, allFed: true)
+    }
+
+    func reorderHorses(_ horses: inout [Horse], from source: IndexSet, to destination: Int) {
+        horses.move(fromOffsets: source, toOffset: destination)
+        for (index, horse) in horses.enumerated() {
+            horse.sortOrder = index
+        }
+        HapticManager.selection()
+    }
+
+    func initializeSortOrder(for horses: [Horse]) {
+        let allZero = horses.allSatisfy { $0.sortOrder == 0 } && horses.count > 1
+        if allZero {
+            let sorted = horses.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            for (index, horse) in sorted.enumerated() {
+                horse.sortOrder = index
+            }
+        }
     }
 
     /// Resets all fed status for the current slot (useful for undo).
