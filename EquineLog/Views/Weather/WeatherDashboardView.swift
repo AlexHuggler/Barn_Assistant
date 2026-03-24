@@ -34,8 +34,7 @@ struct WeatherDashboardView: View {
     private var weatherCard: some View {
         VStack(spacing: 16) {
             if weatherService.isLoading {
-                ProgressView("Fetching weather...")
-                    .frame(maxWidth: .infinity, minHeight: 120)
+                WeatherSkeletonView()
             } else if let errorMsg = weatherService.errorMessage {
                 errorView(errorMsg)
             } else if let temp = weatherService.currentTemperatureF {
@@ -166,9 +165,11 @@ struct WeatherDashboardView: View {
     }
 
     private func blanketCard(for horse: Horse, temperature: Double) -> some View {
+        let thresholds = BlanketThresholds.fromUserDefaults()
         let recommendation = BlanketRecommendation.recommend(
             temperatureF: temperature,
-            isClipped: horse.isClipped
+            isClipped: horse.isClipped,
+            thresholds: thresholds
         )
 
         return HStack(spacing: 14) {

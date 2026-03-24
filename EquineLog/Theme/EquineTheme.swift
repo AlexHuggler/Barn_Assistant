@@ -425,6 +425,46 @@ extension View {
     }
 }
 
+// MARK: - Shimmer Effect
+
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        if reduceMotion {
+            content
+        } else {
+            content
+                .overlay(
+                    GeometryReader { geometry in
+                        LinearGradient(
+                            stops: [
+                                .init(color: .clear, location: max(0, phase - 0.3)),
+                                .init(color: .white.opacity(0.4), location: phase),
+                                .init(color: .clear, location: min(1, phase + 0.3))
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                    .mask(content)
+                )
+                .onAppear {
+                    withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                        phase = 1.3
+                    }
+                }
+        }
+    }
+}
+
+extension View {
+    func shimmer() -> some View {
+        modifier(ShimmerModifier())
+    }
+}
+
 // MARK: - Loading Button Style
 
 struct LoadingButtonStyle: ButtonStyle {
