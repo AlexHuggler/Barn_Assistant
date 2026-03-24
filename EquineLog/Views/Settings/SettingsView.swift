@@ -525,7 +525,7 @@ struct FeatureTutorialCard: View {
                     }
                 }
                 .padding()
-                .background(Color.white.opacity(0.8))
+                .background(Color.parchment.opacity(0.8))
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                 Spacer(minLength: 60)

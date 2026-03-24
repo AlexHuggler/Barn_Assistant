@@ -3,26 +3,41 @@ import SwiftUI
 // MARK: - Color Palette
 
 extension Color {
-    /// Hunter Green — primary brand color.
-    static let hunterGreen = Color(red: 0.13, green: 0.37, blue: 0.18)
-
-    /// Saddle Brown — warm accent color.
-    static let saddleBrown = Color(red: 0.55, green: 0.27, blue: 0.07)
-
-    /// Soft cream background for cards.
-    static let parchment = Color(red: 0.97, green: 0.95, blue: 0.91)
-
-    /// Dark text for high contrast on light backgrounds.
-    static let barnText = Color(red: 0.15, green: 0.12, blue: 0.10)
-
-    /// Subtle divider / border color.
-    static let fenceLine = Color(red: 0.80, green: 0.75, blue: 0.68)
-
-    /// Overdue / alert red.
-    static let alertRed = Color(red: 0.78, green: 0.15, blue: 0.12)
-
-    /// Success green for completed actions.
-    static let pastureGreen = Color(red: 0.20, green: 0.62, blue: 0.28)
+    static let hunterGreen = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.22, green: 0.55, blue: 0.30, alpha: 1)
+            : UIColor(red: 0.13, green: 0.37, blue: 0.18, alpha: 1)
+    })
+    static let saddleBrown = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.75, green: 0.50, blue: 0.25, alpha: 1)
+            : UIColor(red: 0.55, green: 0.27, blue: 0.07, alpha: 1)
+    })
+    static let parchment = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.15, green: 0.15, blue: 0.17, alpha: 1)
+            : UIColor(red: 0.97, green: 0.95, blue: 0.91, alpha: 1)
+    })
+    static let barnText = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.93, green: 0.91, blue: 0.88, alpha: 1)
+            : UIColor(red: 0.15, green: 0.12, blue: 0.10, alpha: 1)
+    })
+    static let fenceLine = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.30, green: 0.28, blue: 0.26, alpha: 1)
+            : UIColor(red: 0.80, green: 0.75, blue: 0.68, alpha: 1)
+    })
+    static let alertRed = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.90, green: 0.30, blue: 0.27, alpha: 1)
+            : UIColor(red: 0.78, green: 0.15, blue: 0.12, alpha: 1)
+    })
+    static let pastureGreen = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.30, green: 0.75, blue: 0.40, alpha: 1)
+            : UIColor(red: 0.20, green: 0.62, blue: 0.28, alpha: 1)
+    })
 }
 
 // MARK: - Typography

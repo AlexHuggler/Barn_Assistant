@@ -113,7 +113,7 @@ struct FeedBoardView: View {
                     .foregroundStyle(Color.hunterGreen)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(.white)
+                    .background(Color.parchment)
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)

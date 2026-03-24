@@ -266,7 +266,7 @@ struct OnboardingView: View {
                             }
                         }
                         .padding()
-                        .background(selectedExperience == level ? Color.hunterGreen : Color.white.opacity(0.8))
+                        .background(selectedExperience == level ? Color.hunterGreen : Color.parchment.opacity(0.8))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
@@ -347,7 +347,7 @@ struct OnboardingView: View {
                             Spacer(minLength: 0)
                         }
                         .padding()
-                        .background(Color.white.opacity(feature.isPrimary ? 0.95 : 0.7))
+                        .background(Color.parchment.opacity(feature.isPrimary ? 0.95 : 0.7))
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay(
                             feature.isPrimary
@@ -398,7 +398,7 @@ struct OnboardingView: View {
                         Spacer()
                     }
                     .padding()
-                    .background(Color.white.opacity(0.8))
+                    .background(Color.parchment.opacity(0.8))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -434,7 +434,7 @@ struct OnboardingView: View {
                 TipRow(icon: "gearshape.fill", text: "Replay this tutorial in Settings")
             }
             .padding()
-            .background(Color.white.opacity(0.6))
+            .background(Color.parchment.opacity(0.6))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .padding(.horizontal, 8)
 
@@ -464,7 +464,7 @@ struct OnboardingView: View {
                     .foregroundStyle(Color.barnText)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 14)
-                    .background(Color.white.opacity(0.8))
+                    .background(Color.parchment.opacity(0.8))
                     .clipShape(Capsule())
                 }
                 .accessibilityLabel("Go back")
@@ -614,7 +614,7 @@ struct SelectableCard: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(isSelected ? Color.hunterGreen : Color.white.opacity(0.8))
+            .background(isSelected ? Color.hunterGreen : Color.parchment.opacity(0.8))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -659,7 +659,7 @@ struct UseCaseCard: View {
                 }
             }
             .padding()
-            .background(isSelected ? Color.hunterGreen : Color.white.opacity(0.8))
+            .background(isSelected ? Color.hunterGreen : Color.parchment.opacity(0.8))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -698,7 +698,7 @@ struct FeatureCard: View {
             Spacer(minLength: 0)
         }
         .padding()
-        .background(Color.white.opacity(0.8))
+        .background(Color.parchment.opacity(0.8))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
