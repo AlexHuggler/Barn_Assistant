@@ -611,7 +611,7 @@ struct FeedResetView: View {
         ) {
             Button("Reset for \(horses.count) horse\(horses.count == 1 ? "" : "s")", role: .destructive) {
                 resetAllFeeds()
-                HapticManager.notification(.success)
+                HapticManager.successSequence()
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}

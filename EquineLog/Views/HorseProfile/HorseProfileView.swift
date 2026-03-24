@@ -281,7 +281,7 @@ struct HorseProfileView: View {
 
     private func generateAndShareReport() {
         guard let data = PDFReportService.generateReport(for: horse) else {
-            HapticManager.notification(.error)
+            HapticManager.warningSequence()
             return
         }
         pdfData = data

@@ -50,7 +50,7 @@ struct HealthTimelineView: View {
             ) { event in
                 Button("Delete", role: .destructive) {
                     modelContext.delete(event)
-                    HapticManager.notification(.success)
+                    HapticManager.successSequence()
                 }
             } message: { event in
                 Text("Are you sure you want to delete this \(event.type.rawValue.lowercased()) event? This cannot be undone.")
@@ -105,11 +105,22 @@ struct HealthTimelineView: View {
             let groups = viewModel.upcomingEvents(from: horses)
             if groups.isEmpty {
                 Section {
-                    ContentUnavailableView(
-                        "No Upcoming Events",
-                        systemImage: "calendar.badge.checkmark",
-                        description: Text("All maintenance is up to date.")
-                    )
+                    VStack(spacing: 20) {
+                        Image(systemName: "calendar.badge.checkmark")
+                            .font(.system(size: 56))
+                            .foregroundStyle(Color.pastureGreen.opacity(0.6))
+                            .symbolEffect(.breathe, options: .repeating.speed(0.3))
+                        Text("All Caught Up")
+                            .font(EquineFont.title)
+                            .foregroundStyle(Color.barnText)
+                        Text("No upcoming maintenance events.\nAll health records are up to date.")
+                            .font(EquineFont.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                    .listRowBackground(Color.clear)
                 }
             } else {
                 ForEach(groups) { group in
@@ -158,14 +169,27 @@ struct HealthTimelineView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            viewModel.selectedFilter = viewModel.selectedFilter
+            HapticManager.impact(.light)
+        }
     }
 
     private var emptyState: some View {
-        ContentUnavailableView(
-            "No Horses Added",
-            systemImage: "heart.text.clipboard",
-            description: Text("Add horses from the Stable tab to track health events.")
-        )
+        VStack(spacing: 20) {
+            Image(systemName: "heart.text.clipboard")
+                .font(.system(size: 64))
+                .foregroundStyle(Color.saddleBrown.opacity(0.5))
+                .symbolEffect(.breathe, options: .repeating.speed(0.3))
+            Text("No Horses Added")
+                .font(EquineFont.title)
+                .foregroundStyle(Color.barnText)
+            Text("Add horses from the Stable tab\nto track health events.")
+                .font(EquineFont.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(40)
     }
 }
 

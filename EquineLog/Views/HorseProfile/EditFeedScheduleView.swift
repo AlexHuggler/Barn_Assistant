@@ -194,7 +194,7 @@ struct EditFeedScheduleView: View {
             horse.feedSchedule = schedule
         }
 
-        HapticManager.notification(.success)
+        HapticManager.successSequence()
 
         withAnimation {
             showSuccessToast = true
@@ -221,7 +221,7 @@ struct EditFeedScheduleView: View {
         )
 
         modelContext.insert(template)
-        HapticManager.notification(.success)
+        HapticManager.successSequence()
 
         // Reset fields
         templateName = ""

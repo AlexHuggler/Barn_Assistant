@@ -90,7 +90,7 @@ final class FeedBoardViewModel {
         let allFed = allHorses.allSatisfy { isFed(horse: $0) }
         if allFed && !allHorses.isEmpty {
             allFedCelebration = true
-            HapticManager.notification(.success)
+            HapticManager.celebrationSequence()
         }
 
         // Update notification streak tracking
@@ -179,7 +179,7 @@ final class FeedBoardViewModel {
         // Trigger celebration and toast
         allFedCelebration = true
         showMarkAllFedToast = true
-        HapticManager.notification(.success)
+        HapticManager.celebrationSequence()
 
         // Update notification streak tracking
         NotificationService.shared.updateFeedingStreak(allHorses: horses, allFed: true)

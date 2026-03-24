@@ -313,7 +313,7 @@ struct AddHealthEventView: View {
             : FormValidation.validateEventDates(eventDate: date, nextDueDate: customNextDueDate)
 
         guard costValid.isValid && datesValid.isValid else {
-            HapticManager.notification(.error)
+            HapticManager.warningSequence()
             return
         }
 
@@ -352,7 +352,7 @@ struct AddHealthEventView: View {
                     )
                 }
             }
-            HapticManager.notification(.success)
+            HapticManager.successSequence()
             withAnimation {
                 showSuccessToast = true
             }
@@ -368,7 +368,7 @@ struct AddHealthEventView: View {
             existingEvent.cost = cost
             existingEvent.providerName = providerName.isEmpty ? nil : providerName
 
-            HapticManager.notification(.success)
+            HapticManager.successSequence()
             withAnimation {
                 showSuccessToast = true
             }
@@ -394,7 +394,7 @@ struct AddHealthEventView: View {
                 )
             }
 
-            HapticManager.notification(.success)
+            HapticManager.successSequence()
             withAnimation {
                 showSuccessToast = true
             }

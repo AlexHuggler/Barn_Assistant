@@ -52,7 +52,7 @@ struct OnboardingView: View {
                         .tag(OnboardingStep.quickStart)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.3), value: currentStep)
+                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: currentStep)
 
                 // Navigation buttons
                 navigationButtons
@@ -69,9 +69,10 @@ struct OnboardingView: View {
             ForEach(OnboardingStep.allCases) { step in
                 Capsule()
                     .fill(step.rawValue <= currentStep.rawValue ? Color.hunterGreen : Color.hunterGreen.opacity(0.2))
-                    .frame(height: 4)
+                    .frame(width: step == currentStep ? 24 : nil, height: 4)
             }
         }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: currentStep)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Step \(currentStep.rawValue + 1) of \(OnboardingStep.allCases.count)")
         .accessibilityValue("\(Int((Double(currentStep.rawValue + 1) / Double(OnboardingStep.allCases.count)) * 100))% complete")
@@ -450,6 +451,7 @@ struct OnboardingView: View {
             // Back button (except on first step)
             if currentStep != .welcome {
                 Button {
+                    HapticManager.selection()
                     withAnimation {
                         currentStep = currentStep.previous
                     }
@@ -489,6 +491,7 @@ struct OnboardingView: View {
                 if currentStep == .quickStart {
                     completeOnboarding()
                 } else {
+                    HapticManager.selection()
                     withAnimation {
                         currentStep = currentStep.next
                     }
@@ -538,7 +541,7 @@ struct OnboardingView: View {
             manager.hasCompletedGuidedTour = true
         }
 
-        HapticManager.notification(.success)
+        HapticManager.successSequence()
         manager.completeOnboarding()
     }
 }

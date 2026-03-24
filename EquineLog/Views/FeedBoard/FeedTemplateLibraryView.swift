@@ -57,18 +57,24 @@ struct FeedTemplateLibraryView: View {
     // MARK: - Subviews
 
     private var emptyState: some View {
-        ContentUnavailableView {
-            Label("No Templates", systemImage: "doc.badge.plus")
-        } description: {
-            Text("Create templates to quickly apply feed schedules to new horses.")
-        } actions: {
-            Button {
+        VStack(spacing: 20) {
+            Image(systemName: "doc.badge.plus")
+                .font(.system(size: 64))
+                .foregroundStyle(Color.saddleBrown.opacity(0.5))
+                .symbolEffect(.breathe, options: .repeating.speed(0.3))
+            Text("No Templates")
+                .font(EquineFont.title)
+                .foregroundStyle(Color.barnText)
+            Text("Create templates to quickly apply\nfeed schedules to new horses.")
+                .font(EquineFont.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Create Template") {
                 showingCreateTemplate = true
-            } label: {
-                Text("Create Template")
             }
             .buttonStyle(PrimaryButtonStyle())
         }
+        .padding(40)
     }
 
     private var templateList: some View {
@@ -112,7 +118,7 @@ struct FeedTemplateLibraryView: View {
 
     private func deleteTemplate(_ template: FeedTemplate) {
         modelContext.delete(template)
-        HapticManager.notification(.success)
+        HapticManager.successSequence()
     }
 }
 
@@ -297,7 +303,7 @@ struct CreateFeedTemplateView: View {
         )
 
         modelContext.insert(template)
-        HapticManager.notification(.success)
+        HapticManager.successSequence()
 
         withAnimation {
             showSuccessToast = true
