@@ -7,12 +7,12 @@ struct EditFeedScheduleView: View {
 
     @State private var amGrain: String
     @State private var amHay: String
-    @State private var amSupplementsText: String
-    @State private var amMedicationsText: String
+    @State private var amSupplements: [String]
+    @State private var amMedications: [String]
     @State private var pmGrain: String
     @State private var pmHay: String
-    @State private var pmSupplementsText: String
-    @State private var pmMedicationsText: String
+    @State private var pmSupplements: [String]
+    @State private var pmMedications: [String]
     @State private var specialInstructions: String
     @State private var isSaving = false
     @State private var showSuccessToast = false
@@ -26,12 +26,12 @@ struct EditFeedScheduleView: View {
         let schedule = horse.feedSchedule
         _amGrain = State(initialValue: schedule?.amGrain ?? "")
         _amHay = State(initialValue: schedule?.amHay ?? "")
-        _amSupplementsText = State(initialValue: schedule?.amSupplements.joined(separator: ", ") ?? "")
-        _amMedicationsText = State(initialValue: schedule?.amMedications.joined(separator: ", ") ?? "")
+        _amSupplements = State(initialValue: schedule?.amSupplements ?? [])
+        _amMedications = State(initialValue: schedule?.amMedications ?? [])
         _pmGrain = State(initialValue: schedule?.pmGrain ?? "")
         _pmHay = State(initialValue: schedule?.pmHay ?? "")
-        _pmSupplementsText = State(initialValue: schedule?.pmSupplements.joined(separator: ", ") ?? "")
-        _pmMedicationsText = State(initialValue: schedule?.pmMedications.joined(separator: ", ") ?? "")
+        _pmSupplements = State(initialValue: schedule?.pmSupplements ?? [])
+        _pmMedications = State(initialValue: schedule?.pmMedications ?? [])
         _specialInstructions = State(initialValue: schedule?.specialInstructions ?? "")
     }
 
@@ -41,8 +41,8 @@ struct EditFeedScheduleView: View {
                 Section("AM Feed") {
                     TextField("Grain (e.g., 2 qt SafeChoice)", text: $amGrain)
                     TextField("Hay (e.g., 2 flakes Timothy)", text: $amHay)
-                    TextField("Supplements (comma-separated)", text: $amSupplementsText)
-                    TextField("Medications (comma-separated)", text: $amMedicationsText)
+                    ChipInputView(label: "Add supplement…", chips: $amSupplements)
+                    ChipInputView(label: "Add medication…", chips: $amMedications)
                 }
 
                 Section("PM Feed") {
@@ -66,8 +66,8 @@ struct EditFeedScheduleView: View {
                     }
                     TextField("Grain", text: $pmGrain)
                     TextField("Hay", text: $pmHay)
-                    TextField("Supplements (comma-separated)", text: $pmSupplementsText)
-                    TextField("Medications (comma-separated)", text: $pmMedicationsText)
+                    ChipInputView(label: "Add supplement…", chips: $pmSupplements)
+                    ChipInputView(label: "Add medication…", chips: $pmMedications)
                 }
 
                 Section("Special Instructions") {
@@ -136,14 +136,14 @@ struct EditFeedScheduleView: View {
     }
 
     private var hasAMFeedData: Bool {
-        !amGrain.isEmpty || !amHay.isEmpty || !amSupplementsText.isEmpty || !amMedicationsText.isEmpty
+        !amGrain.isEmpty || !amHay.isEmpty || !amSupplements.isEmpty || !amMedications.isEmpty
     }
 
     private func copyAMtoPM() {
         pmGrain = amGrain
         pmHay = amHay
-        pmSupplementsText = amSupplementsText
-        pmMedicationsText = amMedicationsText
+        pmSupplements = amSupplements
+        pmMedications = amMedications
     }
 
     private func save() {
@@ -152,23 +152,23 @@ struct EditFeedScheduleView: View {
         if let schedule = horse.feedSchedule {
             schedule.amGrain = amGrain
             schedule.amHay = amHay
-            schedule.amSupplements = StringUtilities.parseCSV(amSupplementsText)
-            schedule.amMedications = StringUtilities.parseCSV(amMedicationsText)
+            schedule.amSupplements = amSupplements
+            schedule.amMedications = amMedications
             schedule.pmGrain = pmGrain
             schedule.pmHay = pmHay
-            schedule.pmSupplements = StringUtilities.parseCSV(pmSupplementsText)
-            schedule.pmMedications = StringUtilities.parseCSV(pmMedicationsText)
+            schedule.pmSupplements = pmSupplements
+            schedule.pmMedications = pmMedications
             schedule.specialInstructions = specialInstructions
         } else {
             let schedule = FeedSchedule(
                 amGrain: amGrain,
                 amHay: amHay,
-                amSupplements: StringUtilities.parseCSV(amSupplementsText),
-                amMedications: StringUtilities.parseCSV(amMedicationsText),
+                amSupplements: amSupplements,
+                amMedications: amMedications,
                 pmGrain: pmGrain,
                 pmHay: pmHay,
-                pmSupplements: StringUtilities.parseCSV(pmSupplementsText),
-                pmMedications: StringUtilities.parseCSV(pmMedicationsText),
+                pmSupplements: pmSupplements,
+                pmMedications: pmMedications,
                 specialInstructions: specialInstructions
             )
             horse.feedSchedule = schedule
@@ -180,7 +180,7 @@ struct EditFeedScheduleView: View {
             showSuccessToast = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
             dismiss()
         }
     }
@@ -191,12 +191,12 @@ struct EditFeedScheduleView: View {
             description: templateDescription,
             amGrain: amGrain,
             amHay: amHay,
-            amSupplements: StringUtilities.parseCSV(amSupplementsText),
-            amMedications: StringUtilities.parseCSV(amMedicationsText),
+            amSupplements: amSupplements,
+            amMedications: amMedications,
             pmGrain: pmGrain,
             pmHay: pmHay,
-            pmSupplements: StringUtilities.parseCSV(pmSupplementsText),
-            pmMedications: StringUtilities.parseCSV(pmMedicationsText),
+            pmSupplements: pmSupplements,
+            pmMedications: pmMedications,
             specialInstructions: specialInstructions
         )
 

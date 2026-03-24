@@ -141,22 +141,11 @@ struct AddHealthEventView: View {
                                     }
                                 }
 
-                            if costFieldTouched || hasAttemptedSave {
-                                let validation = FormValidation.validateCost(cost)
-                                Image(systemName: validation.isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                                    .foregroundStyle(validation.isValid ? Color.pastureGreen : Color.alertRed)
-                                    .font(.body)
-                                    .transition(.scale.combined(with: .opacity))
-                            }
+                            ValidationIndicatorView(validation: FormValidation.validateCost(cost), isVisible: costFieldTouched || hasAttemptedSave)
                         }
                         .animation(.easeInOut(duration: 0.2), value: FormValidation.validateCost(cost).isValid)
 
-                        if (costFieldTouched || hasAttemptedSave), let msg = FormValidation.validateCost(cost).message {
-                            Text(msg)
-                                .font(.caption)
-                                .foregroundStyle(Color.alertRed)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
+                        ValidationMessageView(validation: FormValidation.validateCost(cost), isVisible: costFieldTouched || hasAttemptedSave)
                     }
                     .animation(.easeInOut(duration: 0.15), value: FormValidation.validateCost(cost).message != nil)
                 }
@@ -286,7 +275,7 @@ struct AddHealthEventView: View {
             showSuccessToast = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
             dismiss()
         }
     }
