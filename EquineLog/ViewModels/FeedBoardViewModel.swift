@@ -102,7 +102,7 @@ final class FeedBoardViewModel {
             self?.lastToggledHorse = nil
         }
         undoTimer = timer
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: timer)
+        DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.undoBannerDuration, execute: timer)
     }
 
     func undoLastToggle() {

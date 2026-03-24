@@ -17,12 +17,12 @@ struct AddHorseView: View {
     // Feed schedule fields
     @State private var amGrain = ""
     @State private var amHay = ""
-    @State private var amSupplementsText = ""
-    @State private var amMedicationsText = ""
+    @State private var amSupplements: [String] = []
+    @State private var amMedications: [String] = []
     @State private var pmGrain = ""
     @State private var pmHay = ""
-    @State private var pmSupplementsText = ""
-    @State private var pmMedicationsText = ""
+    @State private var pmSupplements: [String] = []
+    @State private var pmMedications: [String] = []
     @State private var specialInstructions = ""
 
     // Smart defaults
@@ -118,22 +118,11 @@ struct AddHorseView: View {
                             }
                         }
 
-                    // Real-time validation indicator
-                    if nameFieldTouched || hasAttemptedSave {
-                        Image(systemName: nameValidation.isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                            .foregroundStyle(nameValidation.isValid ? Color.pastureGreen : Color.alertRed)
-                            .font(.body)
-                            .transition(.scale.combined(with: .opacity))
-                    }
+                    ValidationIndicatorView(validation: nameValidation, isVisible: nameFieldTouched || hasAttemptedSave)
                 }
                 .animation(.easeInOut(duration: 0.2), value: nameValidation.isValid)
 
-                if (nameFieldTouched || hasAttemptedSave), let msg = nameValidation.message {
-                    Text(msg)
-                        .font(.caption)
-                        .foregroundStyle(Color.alertRed)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+                ValidationMessageView(validation: nameValidation, isVisible: nameFieldTouched || hasAttemptedSave)
             }
             .animation(.easeInOut(duration: 0.15), value: nameValidation.message != nil)
 
@@ -147,21 +136,11 @@ struct AddHorseView: View {
                             }
                         }
 
-                    if ownerFieldTouched || hasAttemptedSave {
-                        Image(systemName: ownerValidation.isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                            .foregroundStyle(ownerValidation.isValid ? Color.pastureGreen : Color.alertRed)
-                            .font(.body)
-                            .transition(.scale.combined(with: .opacity))
-                    }
+                    ValidationIndicatorView(validation: ownerValidation, isVisible: ownerFieldTouched || hasAttemptedSave)
                 }
                 .animation(.easeInOut(duration: 0.2), value: ownerValidation.isValid)
 
-                if (ownerFieldTouched || hasAttemptedSave), let msg = ownerValidation.message {
-                    Text(msg)
-                        .font(.caption)
-                        .foregroundStyle(Color.alertRed)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
+                ValidationMessageView(validation: ownerValidation, isVisible: ownerFieldTouched || hasAttemptedSave)
             }
             .animation(.easeInOut(duration: 0.15), value: ownerValidation.message != nil)
 
@@ -262,8 +241,8 @@ struct AddHorseView: View {
         Section("AM Feed") {
             TextField("Grain (e.g., 2 qt SafeChoice)", text: $amGrain)
             TextField("Hay (e.g., 2 flakes Timothy)", text: $amHay)
-            TextField("Supplements (comma-separated)", text: $amSupplementsText)
-            TextField("Medications (comma-separated)", text: $amMedicationsText)
+            ChipInputView(label: "Add supplement…", chips: $amSupplements)
+            ChipInputView(label: "Add medication…", chips: $amMedications)
         }
     }
 
@@ -289,20 +268,20 @@ struct AddHorseView: View {
             }
             TextField("Grain", text: $pmGrain)
             TextField("Hay", text: $pmHay)
-            TextField("Supplements (comma-separated)", text: $pmSupplementsText)
-            TextField("Medications (comma-separated)", text: $pmMedicationsText)
+            ChipInputView(label: "Add supplement…", chips: $pmSupplements)
+            ChipInputView(label: "Add medication…", chips: $pmMedications)
         }
     }
 
     private var hasAMFeedData: Bool {
-        !amGrain.isEmpty || !amHay.isEmpty || !amSupplementsText.isEmpty || !amMedicationsText.isEmpty
+        !amGrain.isEmpty || !amHay.isEmpty || !amSupplements.isEmpty || !amMedications.isEmpty
     }
 
     private func copyAMtoPM() {
         pmGrain = amGrain
         pmHay = amHay
-        pmSupplementsText = amSupplementsText
-        pmMedicationsText = amMedicationsText
+        pmSupplements = amSupplements
+        pmMedications = amMedications
     }
 
     private var instructionsSection: some View {
@@ -329,12 +308,12 @@ struct AddHorseView: View {
         let schedule = FeedSchedule(
             amGrain: amGrain,
             amHay: amHay,
-            amSupplements: StringUtilities.parseCSV(amSupplementsText),
-            amMedications: StringUtilities.parseCSV(amMedicationsText),
+            amSupplements: amSupplements,
+            amMedications: amMedications,
             pmGrain: pmGrain,
             pmHay: pmHay,
-            pmSupplements: StringUtilities.parseCSV(pmSupplementsText),
-            pmMedications: StringUtilities.parseCSV(pmMedicationsText),
+            pmSupplements: pmSupplements,
+            pmMedications: pmMedications,
             specialInstructions: specialInstructions
         )
 
@@ -354,7 +333,7 @@ struct AddHorseView: View {
             showSuccessToast = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
             dismiss()
         }
     }
@@ -363,12 +342,12 @@ struct AddHorseView: View {
         guard let schedule = horse.feedSchedule else { return }
         amGrain = schedule.amGrain
         amHay = schedule.amHay
-        amSupplementsText = schedule.amSupplements.joined(separator: ", ")
-        amMedicationsText = schedule.amMedications.joined(separator: ", ")
+        amSupplements = schedule.amSupplements
+        amMedications = schedule.amMedications
         pmGrain = schedule.pmGrain
         pmHay = schedule.pmHay
-        pmSupplementsText = schedule.pmSupplements.joined(separator: ", ")
-        pmMedicationsText = schedule.pmMedications.joined(separator: ", ")
+        pmSupplements = schedule.pmSupplements
+        pmMedications = schedule.pmMedications
         specialInstructions = schedule.specialInstructions
         // Pre-fill owner name if the same owner manages multiple horses
         if ownerName.isEmpty {
@@ -379,12 +358,12 @@ struct AddHorseView: View {
     private func applyTemplate(_ template: FeedTemplate) {
         amGrain = template.amGrain
         amHay = template.amHay
-        amSupplementsText = template.amSupplements.joined(separator: ", ")
-        amMedicationsText = template.amMedications.joined(separator: ", ")
+        amSupplements = template.amSupplements
+        amMedications = template.amMedications
         pmGrain = template.pmGrain
         pmHay = template.pmHay
-        pmSupplementsText = template.pmSupplements.joined(separator: ", ")
-        pmMedicationsText = template.pmMedications.joined(separator: ", ")
+        pmSupplements = template.pmSupplements
+        pmMedications = template.pmMedications
         specialInstructions = template.specialInstructions
     }
 

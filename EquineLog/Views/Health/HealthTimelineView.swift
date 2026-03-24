@@ -2,8 +2,11 @@ import SwiftUI
 import SwiftData
 
 struct HealthTimelineView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Horse.name) private var horses: [Horse]
     @State private var viewModel = HealthTimelineViewModel()
+    @State private var eventToDelete: HealthEvent?
+    @State private var showingDeleteConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -40,6 +43,18 @@ struct HealthTimelineView: View {
                     )
                 }
             }
+            .confirmationDialog(
+                "Delete Event",
+                isPresented: $showingDeleteConfirmation,
+                presenting: eventToDelete
+            ) { event in
+                Button("Delete", role: .destructive) {
+                    modelContext.delete(event)
+                    HapticManager.notification(.success)
+                }
+            } message: { event in
+                Text("Are you sure you want to delete this \(event.type.rawValue.lowercased()) event? This cannot be undone.")
+            }
         }
     }
 
@@ -53,9 +68,13 @@ struct HealthTimelineView: View {
                     // Event type filter
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            filterChip(title: "All", type: nil)
+                            FilterChip(title: "All", isSelected: viewModel.selectedFilter == nil, selectedColor: .hunterGreen) {
+                                viewModel.selectedFilter = nil
+                            }
                             ForEach(HealthEventType.allCases) { type in
-                                filterChip(title: type.rawValue, type: type)
+                                FilterChip(title: type.rawValue, isSelected: viewModel.selectedFilter == type, selectedColor: .hunterGreen, icon: type.iconName) {
+                                    viewModel.selectedFilter = type
+                                }
                             }
                         }
                         .padding(.horizontal, 2)
@@ -65,9 +84,13 @@ struct HealthTimelineView: View {
                     if horses.count > 1 {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
-                                horseFilterChip(title: "All Horses", horse: nil)
+                                FilterChip(title: "All Horses", isSelected: viewModel.selectedHorse == nil, selectedColor: .saddleBrown) {
+                                    viewModel.selectedHorse = nil
+                                }
                                 ForEach(horses) { horse in
-                                    horseFilterChip(title: horse.name, horse: horse)
+                                    FilterChip(title: horse.name, isSelected: viewModel.selectedHorse?.id == horse.id, selectedColor: .saddleBrown) {
+                                        viewModel.selectedHorse = horse
+                                    }
                                 }
                             }
                             .padding(.horizontal, 2)
@@ -99,12 +122,31 @@ struct HealthTimelineView: View {
                                     viewModel.eventToEditHorse = item.horse
                                     viewModel.showingEditEvent = true
                                 }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        eventToDelete = item.event
+                                        showingDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    Button {
+                                        viewModel.eventToEdit = item.event
+                                        viewModel.eventToEditHorse = item.horse
+                                        viewModel.showingEditEvent = true
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                    .tint(Color.hunterGreen)
+                                }
                         }
                     } header: {
                         HStack {
                             Text(group.title)
                                 .font(EquineFont.caption)
                                 .foregroundStyle(group.isOverdue ? Color.alertRed : Color.barnText)
+                            StatusBadge(text: "\(group.items.count)", color: group.isOverdue ? .alertRed : .hunterGreen)
                             if group.isOverdue {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .font(.caption2)
@@ -116,52 +158,6 @@ struct HealthTimelineView: View {
             }
         }
         .listStyle(.insetGrouped)
-    }
-
-    private func filterChip(title: String, type: HealthEventType?) -> some View {
-        let isSelected = viewModel.selectedFilter == type
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                viewModel.selectedFilter = type
-            }
-        } label: {
-            Text(title)
-                .font(EquineFont.caption)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(isSelected ? Color.hunterGreen : Color.parchment)
-                .foregroundStyle(isSelected ? .white : Color.barnText)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Filter by \(title)")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private func horseFilterChip(title: String, horse: Horse?) -> some View {
-        let isSelected = viewModel.selectedHorse?.id == horse?.id
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                viewModel.selectedHorse = horse
-            }
-        } label: {
-            HStack(spacing: 6) {
-                if let horse {
-                    HorseAvatarView(horse: horse, size: 20)
-                }
-                Text(title)
-                    .font(EquineFont.caption)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(isSelected ? Color.saddleBrown : Color.parchment)
-            .foregroundStyle(isSelected ? .white : Color.barnText)
-            .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Filter by \(title)")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var emptyState: some View {

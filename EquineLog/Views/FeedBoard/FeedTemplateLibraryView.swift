@@ -165,12 +165,12 @@ struct CreateFeedTemplateView: View {
     @State private var templateDescription = ""
     @State private var amGrain = ""
     @State private var amHay = ""
-    @State private var amSupplementsText = ""
-    @State private var amMedicationsText = ""
+    @State private var amSupplements: [String] = []
+    @State private var amMedications: [String] = []
     @State private var pmGrain = ""
     @State private var pmHay = ""
-    @State private var pmSupplementsText = ""
-    @State private var pmMedicationsText = ""
+    @State private var pmSupplements: [String] = []
+    @State private var pmMedications: [String] = []
     @State private var specialInstructions = ""
     @State private var isSaving = false
     @State private var showSuccessToast = false
@@ -192,17 +192,17 @@ struct CreateFeedTemplateView: View {
                 Section("AM Feed") {
                     TextField("Grain (e.g., 2 qt SafeChoice)", text: $amGrain)
                     TextField("Hay (e.g., 2 flakes Timothy)", text: $amHay)
-                    TextField("Supplements (comma-separated)", text: $amSupplementsText)
-                    TextField("Medications (comma-separated)", text: $amMedicationsText)
+                    ChipInputView(label: "Add supplement…", chips: $amSupplements)
+                    ChipInputView(label: "Add medication…", chips: $amMedications)
                 }
 
                 Section("PM Feed") {
-                    if !amGrain.isEmpty || !amHay.isEmpty || !amSupplementsText.isEmpty || !amMedicationsText.isEmpty {
+                    if !amGrain.isEmpty || !amHay.isEmpty || !amSupplements.isEmpty || !amMedications.isEmpty {
                         Button {
                             pmGrain = amGrain
                             pmHay = amHay
-                            pmSupplementsText = amSupplementsText
-                            pmMedicationsText = amMedicationsText
+                            pmSupplements = amSupplements
+                            pmMedications = amMedications
                             HapticManager.selection()
                         } label: {
                             HStack {
@@ -220,8 +220,8 @@ struct CreateFeedTemplateView: View {
                     }
                     TextField("Grain", text: $pmGrain)
                     TextField("Hay", text: $pmHay)
-                    TextField("Supplements (comma-separated)", text: $pmSupplementsText)
-                    TextField("Medications (comma-separated)", text: $pmMedicationsText)
+                    ChipInputView(label: "Add supplement…", chips: $pmSupplements)
+                    ChipInputView(label: "Add medication…", chips: $pmMedications)
                 }
 
                 Section("Special Instructions") {
@@ -263,12 +263,12 @@ struct CreateFeedTemplateView: View {
             description: templateDescription,
             amGrain: amGrain,
             amHay: amHay,
-            amSupplements: StringUtilities.parseCSV(amSupplementsText),
-            amMedications: StringUtilities.parseCSV(amMedicationsText),
+            amSupplements: amSupplements,
+            amMedications: amMedications,
             pmGrain: pmGrain,
             pmHay: pmHay,
-            pmSupplements: StringUtilities.parseCSV(pmSupplementsText),
-            pmMedications: StringUtilities.parseCSV(pmMedicationsText),
+            pmSupplements: pmSupplements,
+            pmMedications: pmMedications,
             specialInstructions: specialInstructions
         )
 
@@ -279,7 +279,7 @@ struct CreateFeedTemplateView: View {
             showSuccessToast = true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.feedbackDelay) {
             dismiss()
         }
     }

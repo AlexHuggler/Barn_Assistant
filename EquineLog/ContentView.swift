@@ -44,7 +44,7 @@ struct ContentView: View {
                 }
                 // Start guided tour after a brief delay so the main UI renders first
                 if onboardingManager.shouldShowGuidedTour {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.tourStepDelay) {
                         withAnimation {
                             onboardingManager.startGuidedTour()
                         }
@@ -64,7 +64,7 @@ struct ContentView: View {
             seedDefaultTemplatesIfNeeded()
             // Resume guided tour if the user left mid-tour (app restart)
             if onboardingManager.shouldShowGuidedTour && onboardingManager.guidedTourStep == nil {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + ViewConstants.tourStepDelay) {
                     withAnimation {
                         onboardingManager.startGuidedTour()
                     }

@@ -174,6 +174,193 @@ extension View {
     }
 }
 
+// MARK: - Chip Input View
+
+struct ChipInputView: View {
+    let label: String
+    @Binding var chips: [String]
+
+    @State private var inputText = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !chips.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(chips, id: \.self) { chip in
+                        HStack(spacing: 4) {
+                            Text(chip)
+                                .font(EquineFont.caption)
+                                .foregroundStyle(Color.barnText)
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    chips.removeAll { $0 == chip }
+                                }
+                                HapticManager.impact(.light)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.barnText.opacity(0.5))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.parchment)
+                        .clipShape(Capsule())
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                }
+            }
+
+            TextField(label, text: $inputText)
+                .font(EquineFont.body)
+                .autocorrectionDisabled()
+                .onSubmit {
+                    addChip()
+                }
+                .onChange(of: inputText) { _, newValue in
+                    if newValue.last == "," {
+                        inputText = String(newValue.dropLast())
+                        addChip()
+                    }
+                }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
+    }
+
+    private func addChip() {
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !chips.contains(trimmed) else {
+            inputText = ""
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            chips.append(trimmed)
+        }
+        inputText = ""
+        HapticManager.selection()
+    }
+}
+
+/// Simple flow layout that wraps chips to the next line.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrangeSubviews(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrangeSubviews(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth && x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            totalHeight = y + rowHeight
+        }
+
+        return (CGSize(width: maxWidth, height: totalHeight), positions)
+    }
+}
+
+// MARK: - Validation Indicator
+
+struct ValidationIndicatorView: View {
+    let validation: FormValidation.Result
+    let isVisible: Bool
+
+    var body: some View {
+        if isVisible {
+            Image(systemName: validation.isValid ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                .foregroundStyle(validation.isValid ? Color.pastureGreen : Color.alertRed)
+                .font(.body)
+                .transition(.scale.combined(with: .opacity))
+        }
+    }
+}
+
+struct ValidationMessageView: View {
+    let validation: FormValidation.Result
+    let isVisible: Bool
+
+    var body: some View {
+        if isVisible, let msg = validation.message {
+            Text(msg)
+                .font(.caption)
+                .foregroundStyle(Color.alertRed)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+}
+
+// MARK: - Filter Chip
+
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let selectedColor: Color
+    let action: () -> Void
+    var icon: String? = nil
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                action()
+            }
+            HapticManager.selection()
+        } label: {
+            HStack(spacing: 6) {
+                if let icon {
+                    Image(systemName: icon)
+                        .font(.caption2)
+                }
+                Text(title)
+                    .font(EquineFont.caption)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(isSelected ? selectedColor : Color.parchment)
+            .foregroundStyle(isSelected ? .white : Color.barnText)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Filter by \(title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+// MARK: - View Constants
+
+enum ViewConstants {
+    static let toastDuration: TimeInterval = 2.0
+    static let feedbackDelay: TimeInterval = 0.8
+    static let undoBannerDuration: TimeInterval = 4.0
+    static let tourStepDelay: TimeInterval = 0.6
+    static let celebrationDuration: TimeInterval = 3.0
+}
+
 // MARK: - Loading Button Style
 
 struct LoadingButtonStyle: ButtonStyle {
