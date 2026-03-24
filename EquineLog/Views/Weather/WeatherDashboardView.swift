@@ -11,6 +11,8 @@ struct WeatherDashboardView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     weatherCard
+                    temperatureDropAlert
+                    forecastSection
                     blanketingSection
                 }
                 .padding()
@@ -136,6 +138,73 @@ struct WeatherDashboardView: View {
             .buttonStyle(PrimaryButtonStyle())
         }
         .padding()
+    }
+
+    // MARK: - Forecast Section
+
+    private var forecastSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("5-Day Forecast")
+                .font(EquineFont.title)
+                .foregroundStyle(Color.barnText)
+                .padding(.horizontal)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(weatherService.dailyForecast) { day in
+                        forecastDayCard(day)
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    private func forecastDayCard(_ day: DayForecast) -> some View {
+        VStack(spacing: 8) {
+            Text(day.date.formatted(.dateTime.weekday(.abbreviated)))
+                .font(EquineFont.caption)
+                .foregroundStyle(.secondary)
+
+            Image(systemName: day.conditionSymbol)
+                .font(.title2)
+                .foregroundStyle(Color.hunterGreen)
+                .symbolRenderingMode(.multicolor)
+
+            VStack(spacing: 2) {
+                Text("\(Int(day.highF))°")
+                    .font(EquineFont.body)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.barnText)
+                Text("\(Int(day.lowF))°")
+                    .font(EquineFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 72)
+        .padding(.vertical, 12)
+        .equineCard()
+    }
+
+    // MARK: - Temperature Drop Alert
+
+    @ViewBuilder
+    private var temperatureDropAlert: some View {
+        if let currentTemp = weatherService.currentTemperatureF,
+           let coldDay = weatherService.dailyForecast.first(where: { currentTemp - $0.lowF >= 15 }) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.alertRed)
+                Text("Heads up: Temperature dropping to \(Int(coldDay.lowF))° on \(coldDay.date.formatted(.dateTime.weekday(.wide))). Check blankets.")
+                    .font(EquineFont.caption)
+                    .foregroundStyle(Color.barnText)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.alertRed.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal)
+        }
     }
 
     // MARK: - Blanketing Section

@@ -3,6 +3,17 @@ import WeatherKit
 import CoreLocation
 import Observation
 
+// MARK: - DayForecast
+
+struct DayForecast: Identifiable {
+    let id = UUID()
+    let date: Date
+    let highF: Double
+    let lowF: Double
+    let conditionDescription: String
+    let conditionSymbol: String
+}
+
 // MARK: - WeatherService
 
 @Observable
@@ -13,6 +24,7 @@ final class WeatherService {
     var conditionSymbol: String?
     var humidity: Double?
     var windSpeedMPH: Double?
+    var dailyForecast: [DayForecast] = []
     var isLoading = false
     var errorMessage: String?
     var lastUpdated: Date?
@@ -44,6 +56,18 @@ final class WeatherService {
             conditionSymbol = current.symbolName
             humidity = current.humidity * 100
             windSpeedMPH = current.wind.speed.converted(to: .milesPerHour).value
+
+            let daily = weather.dailyForecast.prefix(5)
+            dailyForecast = daily.map { day in
+                DayForecast(
+                    date: day.date,
+                    highF: day.highTemperature.converted(to: .fahrenheit).value,
+                    lowF: day.lowTemperature.converted(to: .fahrenheit).value,
+                    conditionDescription: day.condition.description,
+                    conditionSymbol: day.symbolName
+                )
+            }
+
             lastUpdated = .now
         } catch {
             errorMessage = "Unable to fetch weather: \(error.localizedDescription)"
