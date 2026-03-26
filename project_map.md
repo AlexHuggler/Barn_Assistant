@@ -1,6 +1,6 @@
 # EquineLog Project Architecture Map
 
-*Last Updated: February 2026*
+*Last Updated: March 2026*
 
 ## 1. Framework Analysis
 
@@ -198,12 +198,16 @@ struct EquineLogApp: App {
 
 ### Schema Migration Strategy
 
+Two versioned schemas with lightweight migration:
+
 ```swift
 enum EquineLogMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self]  // Future: SchemaV2.self, etc.
+        [SchemaV1.self, SchemaV2.self]
     }
-    static var stages: [MigrationStage] { [] }  // Lightweight by default
+    static var stages: [MigrationStage] {
+        [migrateV1toV2]  // Lightweight: adds sortOrder to Horse
+    }
 }
 ```
 
@@ -294,6 +298,8 @@ EquineLog/
 │   └── OnboardingView.swift        # 5-step tutorial flow
 │
 ├── Services/
+│   ├── NotificationService.swift   # Notification evaluation + dispatch (MainActor singleton)
+│   ├── NotificationScheduler.swift # BGTaskScheduler registration
 │   ├── WeatherService.swift        # WeatherKit + LocationManager (MainActor)
 │   └── PDFReportService.swift      # PDF generation
 │

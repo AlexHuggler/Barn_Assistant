@@ -19,6 +19,10 @@ struct DayForecast: Identifiable {
 @Observable
 @MainActor
 final class WeatherService {
+    /// Shared singleton instance. Use this instead of creating new instances
+    /// to ensure weather data cache is shared across all views.
+    static let shared = WeatherService()
+
     var currentTemperatureF: Double?
     var conditionDescription: String?
     var conditionSymbol: String?
@@ -33,6 +37,8 @@ final class WeatherService {
     static let cacheDuration: TimeInterval = 15 * 60
 
     private let weatherService = WeatherKit.WeatherService.shared
+
+    private init() {}
 
     /// Returns true if a new fetch is needed (no cache or cache expired).
     var shouldFetchWeather: Bool {

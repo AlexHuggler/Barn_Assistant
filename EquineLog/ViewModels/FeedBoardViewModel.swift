@@ -3,6 +3,7 @@ import SwiftData
 import Observation
 
 @Observable
+@MainActor
 final class FeedBoardViewModel {
     var showingAddHorse = false
     var searchText = ""

@@ -9,7 +9,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeededDefaultTemplates") private var hasSeededDefaultTemplates = false
     @Query(sort: \Horse.name) private var allHorses: [Horse]
-    @State private var notificationWeatherService = WeatherService()
+    private var notificationWeatherService: WeatherService { WeatherService.shared }
 
     var body: some View {
         ZStack {

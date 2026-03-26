@@ -3,7 +3,7 @@ import SwiftData
 
 struct WeatherDashboardView: View {
     @Query(sort: \Horse.name) private var horses: [Horse]
-    @State private var weatherService = WeatherService()
+    private var weatherService: WeatherService { WeatherService.shared }
     private var locationManager: LocationManager { LocationManager.shared }
 
     var body: some View {

@@ -31,6 +31,7 @@ final class NotificationService {
             }
             await updatePermissionStatus()
         } catch {
+            print("[NotificationService] Permission request failed: \(error.localizedDescription)")
             await updatePermissionStatus()
         }
     }

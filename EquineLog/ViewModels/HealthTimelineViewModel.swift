@@ -3,6 +3,7 @@ import SwiftData
 import Observation
 
 @Observable
+@MainActor
 final class HealthTimelineViewModel {
     var selectedFilter: HealthEventType?
     var showingAddEvent = false
