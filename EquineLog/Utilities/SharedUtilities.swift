@@ -88,18 +88,28 @@ enum HapticManager {
 
     static func successSequence() {
         impact(.light)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { impact(.medium) }
+        Task {
+            try? await Task.sleep(for: .milliseconds(100))
+            impact(.medium)
+        }
     }
 
     static func celebrationSequence() {
         impact(.light)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { impact(.medium) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { notification(.success) }
+        Task {
+            try? await Task.sleep(for: .milliseconds(100))
+            impact(.medium)
+            try? await Task.sleep(for: .milliseconds(100))
+            notification(.success)
+        }
     }
 
     static func warningSequence() {
         notification(.error)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { notification(.error) }
+        Task {
+            try? await Task.sleep(for: .milliseconds(120))
+            notification(.error)
+        }
     }
 }
 

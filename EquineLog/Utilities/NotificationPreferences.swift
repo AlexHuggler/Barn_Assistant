@@ -139,15 +139,25 @@ final class NotificationPreferences {
     }
 
     private func loadLastNotifiedDates() -> [String: TimeInterval] {
-        guard let data = UserDefaults.standard.data(forKey: Keys.lastNotifiedDates),
-              let dict = try? JSONDecoder().decode([String: TimeInterval].self, from: data)
-        else { return [:] }
-        return dict
+        guard let data = UserDefaults.standard.data(forKey: Keys.lastNotifiedDates) else { return [:] }
+        do {
+            return try JSONDecoder().decode([String: TimeInterval].self, from: data)
+        } catch {
+            #if DEBUG
+            print("[NotificationPreferences] Failed to decode lastNotifiedDates: \(error)")
+            #endif
+            return [:]
+        }
     }
 
     private func saveLastNotifiedDates(_ dict: [String: TimeInterval]) {
-        if let data = try? JSONEncoder().encode(dict) {
+        do {
+            let data = try JSONEncoder().encode(dict)
             UserDefaults.standard.set(data, forKey: Keys.lastNotifiedDates)
+        } catch {
+            #if DEBUG
+            print("[NotificationPreferences] Failed to encode lastNotifiedDates: \(error)")
+            #endif
         }
     }
 

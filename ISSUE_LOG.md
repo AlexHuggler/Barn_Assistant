@@ -560,14 +560,64 @@ FeedTemplateLibraryView previews now show populated state.
 
 ---
 
-### Medium (Deferred — March 2026)
+### MED-009: DispatchQueue.main.asyncAfter Inconsistent with async/await
 
-The following items were identified but deferred per user decision:
+**Files:** `ContentView.swift`, `SharedUtilities.swift`
 
-| ID | Category | Description | File |
-|----|----------|-------------|------|
-| MED-009 | Concurrency | `DispatchQueue.main.asyncAfter` scattered across codebase; inconsistent with async/await | ContentView, FeedBoardViewModel, SharedUtilities |
-| MED-010 | Architecture | ContentView handles template seeding directly (business logic in view) | ContentView.swift:76-119 |
-| MED-011 | Testability | No protocol abstractions for services; singletons make unit testing harder | Multiple |
-| MED-012 | Code Organization | OnboardingView at 729 lines; could decompose into per-step subviews | OnboardingView.swift |
-| MED-013 | Diagnostics | `try?` in NotificationPreferences without debug logging | NotificationPreferences.swift:143,149 |
+**Status:** ✅ **FIXED**
+
+**Problem:** `DispatchQueue.main.asyncAfter` scattered across codebase, inconsistent with the otherwise modern async/await approach.
+
+**Fix:** Replaced with `Task { try? await Task.sleep(for:) }` in ContentView (tour delays) and SharedUtilities (haptic sequences). Kept `DispatchWorkItem` in FeedBoardViewModel where cancellation is needed for undo timer.
+
+---
+
+### MED-010: ContentView Handles Template Seeding Directly
+
+**File:** `EquineLog/ContentView.swift`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** 40 lines of business logic (seeding default feed templates) lived directly in ContentView.
+
+**Fix:** Extracted to `FeedTemplate.seedDefaults(into:)` static method. ContentView now delegates with a single call.
+
+---
+
+### MED-011: No Protocol Abstractions for Services
+
+**Status:** Accepted tech debt
+
+**Rationale:** Protocol abstractions for singletons would require significant refactoring with limited benefit for this codebase size. The preview container pattern already supports SwiftUI previews, and test files use in-memory containers.
+
+---
+
+### MED-012: OnboardingView at 729 Lines
+
+**File:** `EquineLog/Onboarding/OnboardingView.swift`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** Single file contained the full onboarding flow plus all supporting views.
+
+**Fix:** Decomposed into 8 focused files:
+- `OnboardingView.swift` — shell (~190 lines: TabView, progress, navigation, actions)
+- `Steps/WelcomeStepView.swift` — welcome screen
+- `Steps/BarnSetupStepView.swift` — barn name + horse count
+- `Steps/UseCaseStepView.swift` — primary use case selection
+- `Steps/ExperienceLevelStepView.swift` — experience level picker
+- `Steps/FeatureHighlightsStepView.swift` — personalized feature list
+- `Steps/QuickStartStepView.swift` — horse quick-add + tips
+- `OnboardingComponents.swift` — shared components (OnboardingStep, ValuePropRow, SelectableCard, UseCaseCard, FeatureCard, TipRow)
+
+---
+
+### MED-013: try? in NotificationPreferences Without Logging
+
+**File:** `EquineLog/Utilities/NotificationPreferences.swift`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** JSON encode/decode used `try?` which silently swallowed errors, making debugging difficult.
+
+**Fix:** Replaced with explicit do/catch blocks that log errors in DEBUG builds via `#if DEBUG print(...)`. Returns safe defaults on failure.
