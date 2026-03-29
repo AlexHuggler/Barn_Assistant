@@ -82,4 +82,49 @@ final class FeedTemplate {
     func recordUsage() {
         usageCount += 1
     }
+
+    /// Seeds default feed templates into the given model context.
+    /// Called once after onboarding completes.
+    static func seedDefaults(into context: ModelContext) {
+        let defaults: [(name: String, description: String, amGrain: String, amHay: String, pmGrain: String, pmHay: String, instructions: String)] = [
+            ("Hay Only",
+             "Basic hay diet, no grain",
+             "", "2 flakes Timothy",
+             "", "2 flakes Timothy",
+             ""),
+            ("Grain + Hay (Standard)",
+             "Common daily ration for an average adult horse",
+             "2 qt SafeChoice", "2 flakes Timothy",
+             "2 qt SafeChoice", "2 flakes Timothy",
+             ""),
+            ("Light Work",
+             "Reduced grain for easy keepers or light riding",
+             "1 qt SafeChoice", "2 flakes Mixed",
+             "", "2 flakes Mixed",
+             "Monitor weight weekly"),
+            ("Performance",
+             "Higher calorie diet for horses in heavy work",
+             "3 qt Ultium", "3 flakes Orchard/Alfalfa mix",
+             "3 qt Ultium", "3 flakes Orchard/Alfalfa mix",
+             "Electrolytes in water bucket after exercise"),
+            ("Senior",
+             "Easily digestible ration for older horses",
+             "2 qt Senior feed", "2 flakes soft Timothy",
+             "2 qt Senior feed", "2 flakes soft Timothy",
+             "Soak grain if needed. Monitor teeth.")
+        ]
+
+        for t in defaults {
+            let template = FeedTemplate(
+                name: t.name,
+                description: t.description,
+                amGrain: t.amGrain,
+                amHay: t.amHay,
+                pmGrain: t.pmGrain,
+                pmHay: t.pmHay,
+                specialInstructions: t.instructions
+            )
+            context.insert(template)
+        }
+    }
 }

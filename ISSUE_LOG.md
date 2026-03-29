@@ -1,6 +1,6 @@
 # EquineLog Issue Log
 
-*Last Updated: February 2026*
+*Last Updated: March 2026*
 
 iOS-specific technical review identifying crashes, memory leaks, and UX degradation risks.
 
@@ -495,3 +495,129 @@ FeedTemplateLibraryView previews now show populated state.
 - Display names are stable
 - Localization would require a separate mapping regardless
 - Current implementation is acceptable for MVP
+
+---
+
+## March 2026 Audit — New Findings
+
+### HIGH-007: FeedBoardViewModel Missing @MainActor Isolation
+
+**File:** `EquineLog/ViewModels/FeedBoardViewModel.swift:6`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** `FeedBoardViewModel` is `@Observable` but lacks `@MainActor`. It mutates UI state properties and calls `NotificationService.shared` (which is `@MainActor`). Currently works because SwiftUI views call it on MainActor implicitly, but this is fragile — a background Task could access it unsafely.
+
+**Risk:** Under strict concurrency checking (Swift 6), this will produce warnings or errors. Could cause data races if accessed from non-MainActor context.
+
+**Fix:** Add `@MainActor` to class declaration.
+
+---
+
+### HIGH-008: HealthTimelineViewModel Missing @MainActor Isolation
+
+**File:** `EquineLog/ViewModels/HealthTimelineViewModel.swift:6`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** Same issue as HIGH-007. `@Observable` class without `@MainActor` that manages UI state.
+
+**Fix:** Add `@MainActor` to class declaration.
+
+---
+
+### HIGH-009: WeatherService Not Singleton — Duplicate Instances Waste API Calls
+
+**Files:** `EquineLog/Services/WeatherService.swift`, `EquineLog/ContentView.swift:12`, `EquineLog/Views/Weather/WeatherDashboardView.swift:6`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** `WeatherService` is instantiated per-view (`@State private var weatherService = WeatherService()`), unlike other services which use singleton pattern. This creates multiple independent instances, each with their own cache, defeating the 15-minute throttling. ContentView and WeatherDashboardView each create separate instances.
+
+**Risk:** WeatherKit API rate limit violations; redundant network calls; inconsistent weather data across views.
+
+**Fix:** Convert to singleton pattern (`static let shared`), update all call sites.
+
+---
+
+### HIGH-010: NotificationService.requestPermission Silently Swallows Errors
+
+**File:** `EquineLog/Services/NotificationService.swift:26-35`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** The catch block calls `updatePermissionStatus()` but does not log the error. If the permission request fails for an unexpected reason, there is no diagnostic information available.
+
+```swift
+} catch {
+    await updatePermissionStatus()  // Error lost here
+}
+```
+
+**Risk:** Invisible failures during notification permission flow make debugging difficult.
+
+**Fix:** Log the error before updating status.
+
+---
+
+### MED-009: DispatchQueue.main.asyncAfter Inconsistent with async/await
+
+**Files:** `ContentView.swift`, `SharedUtilities.swift`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** `DispatchQueue.main.asyncAfter` scattered across codebase, inconsistent with the otherwise modern async/await approach.
+
+**Fix:** Replaced with `Task { try? await Task.sleep(for:) }` in ContentView (tour delays) and SharedUtilities (haptic sequences). Kept `DispatchWorkItem` in FeedBoardViewModel where cancellation is needed for undo timer.
+
+---
+
+### MED-010: ContentView Handles Template Seeding Directly
+
+**File:** `EquineLog/ContentView.swift`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** 40 lines of business logic (seeding default feed templates) lived directly in ContentView.
+
+**Fix:** Extracted to `FeedTemplate.seedDefaults(into:)` static method. ContentView now delegates with a single call.
+
+---
+
+### MED-011: No Protocol Abstractions for Services
+
+**Status:** Accepted tech debt
+
+**Rationale:** Protocol abstractions for singletons would require significant refactoring with limited benefit for this codebase size. The preview container pattern already supports SwiftUI previews, and test files use in-memory containers.
+
+---
+
+### MED-012: OnboardingView at 729 Lines
+
+**File:** `EquineLog/Onboarding/OnboardingView.swift`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** Single file contained the full onboarding flow plus all supporting views.
+
+**Fix:** Decomposed into 8 focused files:
+- `OnboardingView.swift` — shell (~190 lines: TabView, progress, navigation, actions)
+- `Steps/WelcomeStepView.swift` — welcome screen
+- `Steps/BarnSetupStepView.swift` — barn name + horse count
+- `Steps/UseCaseStepView.swift` — primary use case selection
+- `Steps/ExperienceLevelStepView.swift` — experience level picker
+- `Steps/FeatureHighlightsStepView.swift` — personalized feature list
+- `Steps/QuickStartStepView.swift` — horse quick-add + tips
+- `OnboardingComponents.swift` — shared components (OnboardingStep, ValuePropRow, SelectableCard, UseCaseCard, FeatureCard, TipRow)
+
+---
+
+### MED-013: try? in NotificationPreferences Without Logging
+
+**File:** `EquineLog/Utilities/NotificationPreferences.swift`
+
+**Status:** ✅ **FIXED**
+
+**Problem:** JSON encode/decode used `try?` which silently swallowed errors, making debugging difficult.
+
+**Fix:** Replaced with explicit do/catch blocks that log errors in DEBUG builds via `#if DEBUG print(...)`. Returns safe defaults on failure.

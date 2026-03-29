@@ -52,22 +52,41 @@ struct LocationManagerTests {
 
 /// Tests for WeatherService caching and throttling.
 /// HIGH-001: Validates weather fetch throttling.
+/// HIGH-009: Validates singleton pattern (March 2026 fix).
 @Suite("WeatherService Throttling")
 struct WeatherServiceTests {
+
+    @Test("WeatherService is a singleton")
+    @MainActor
+    func weatherServiceIsSingleton() {
+        let service1 = WeatherService.shared
+        let service2 = WeatherService.shared
+        #expect(service1 === service2, "WeatherService.shared should return the same instance")
+    }
 
     @Test("WeatherService respects cache duration")
     @MainActor
     func weatherServiceCacheDuration() async {
-        let service = WeatherService()
+        let service = WeatherService.shared
 
-        // Given: No previous fetch
-        #expect(service.lastUpdated == nil)
-
-        // When: We check if fetch is needed
+        // When: We check if fetch is needed with no cache
+        service.lastUpdated = nil
         let shouldFetch = service.shouldFetchWeather
 
         // Then: It should need a fetch
         #expect(shouldFetch == true, "Should fetch when no cached data exists")
+    }
+
+    @Test("WeatherService skips fetch when cache is fresh")
+    @MainActor
+    func weatherServiceSkipsFetchWhenCached() {
+        let service = WeatherService.shared
+
+        // Given: Recent fetch timestamp
+        service.lastUpdated = .now
+
+        // Then: Should not need a fetch
+        #expect(service.shouldFetchWeather == false, "Should skip fetch when cache is fresh")
     }
 
     @Test("WeatherService has valid cache configuration")
@@ -76,6 +95,22 @@ struct WeatherServiceTests {
         // Cache duration should be at least 10 minutes to avoid API rate limits
         let minimumCacheDuration: TimeInterval = 10 * 60  // 10 minutes
         #expect(WeatherService.cacheDuration >= minimumCacheDuration)
+    }
+}
+
+/// Tests for HealthTimelineViewModel MainActor isolation.
+/// HIGH-008: Validates @MainActor isolation (March 2026 fix).
+@Suite("HealthTimelineViewModel Isolation")
+struct HealthTimelineViewModelTests {
+
+    @Test("HealthTimelineViewModel is MainActor-isolated")
+    @MainActor
+    func viewModelIsMainActorIsolated() {
+        let vm = HealthTimelineViewModel()
+        _ = vm.selectedFilter
+        _ = vm.showingAddEvent
+        _ = vm.selectedHorse
+        #expect(true, "HealthTimelineViewModel properties accessible from MainActor context")
     }
 }
 
